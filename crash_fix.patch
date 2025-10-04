@@ -1,0 +1,19 @@
+--- MainActivity.kt.orig
++++ MainActivity.kt
+@@ -519,6 +519,7 @@
+     override fun onDestroy() {
+         super.onDestroy()
+         
++        try {
+         // Always unregister phone state listener to prevent memory leaks
+         unregisterPhoneStateListener()
+         
+@@ -546,6 +547,9 @@
+         } catch (e: Exception) {
+             Log.e(TAG, "Error resetting payment state: ${e.message}")
+         }
++        } catch (e: Exception) {
++            Log.e(TAG, "Error during cleanup: ${e.message}")
++        }
+     }
+ }

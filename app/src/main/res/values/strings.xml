@@ -1,0 +1,81 @@
+<resources>
+    <string name="app_name">FlowPay</string>
+    <string name="welcome_message">Welcome to FlowPay!</string>
+    <string name="get_started">Get Started</string>
+    <string name="sign_in">Sign In</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="don_t_have_account">Don\'t have an account?</string>
+    <string name="already_have_account">Already have an account?</string>
+    
+    <!-- Setup Screen Strings -->
+    <string name="setup_flowpay">Setup FlowPay</string>
+    <string name="configure_upi_payments">Configure your UPI payments</string>
+    <string name="mobile_number">Mobile Number</string>
+    <string name="mobile_number_hint">10-digit mobile number</string>
+    <string name="bank_selection">Bank Selection</string>
+    <string name="choose_primary_bank">Choose your primary bank for UPI payments</string>
+    <string name="select_bank">Choose your bank</string>
+    <string name="sim_card_selection">SIM Card Selection</string>
+    <string name="configure_sim_cards">Configure your SIM cards for USSD payments</string>
+    <string name="primary_sim">Primary SIM</string>
+    <string name="select_primary_sim">Select your primary SIM</string>
+    <string name="enable_dual_sim">Enable Dual SIM support</string>
+    <string name="secondary_sim">Secondary SIM</string>
+    <string name="select_secondary_sim">Select your secondary SIM</string>
+    <string name="complete_setup">Complete Setup</string>
+    
+    <!-- Bank Names -->
+    <string name="sbi">State Bank of India</string>
+    <string name="hdfc">HDFC Bank</string>
+    <string name="icici">ICICI Bank</string>
+    <string name="axis">Axis Bank</string>
+    <string name="kotak">Kotak Mahindra Bank</string>
+    <string name="pnb">Punjab National Bank</string>
+    <string name="bob">Bank of Baroda</string>
+    <string name="yes">Yes Bank</string>
+    <string name="idbi">IDBI Bank</string>
+    <string name="canara">Canara Bank</string>
+    
+    <!-- SIM Carriers -->
+    <string name="jio">Jio (Reliance Jio)</string>
+    <string name="airtel">Airtel (Bharti Airtel)</string>
+    <string name="vodafone">Vodafone (Vodafone Idea)</string>
+    <string name="bsnl">BSNL (Bharat Sanchar Nigam Limited)</string>
+    
+    <!-- Validation Messages -->
+    <string name="please_enter_mobile">Please enter your mobile number</string>
+    <string name="please_select_bank">Please select your bank</string>
+    <string name="please_select_primary_sim">Please select your primary SIM</string>
+    <string name="please_select_secondary_sim">Please select your secondary SIM</string>
+    <string name="setup_completed">FlowPay setup completed successfully!</string>
+    
+    <!-- Overlay Messages -->
+    <string name="upi_payment_progress">UPI Payment Progress</string>
+    <string name="paste_vpa">Paste the VPA</string>
+    <string name="enter_amount">Enter amount you wish to pay</string>
+    <string name="press_skip">Press 1 to skip remarks</string>
+    <string name="enter_pin">Enter your UPI PIN</string>
+    <string name="waiting_confirmation">Waiting for confirmation...</string>
+    <string name="processing">Processing...</string>
+    <string name="check_sms_status">Please check your SMS for status</string>
+    
+    <!-- Error Messages -->
+    <string name="invalid_phone_number">Please enter a valid 10-digit phone number</string>
+    <string name="invalid_amount">Please enter a valid amount</string>
+    <string name="permission_required">Required permissions not granted</string>
+    <string name="overlay_permission_required">Overlay permission required for payment protection</string>
+    <string name="phone_permission_required">Phone call permission is required</string>
+    <string name="camera_permission_required">Camera permission required for QR scanning</string>
+    <string name="invalid_qr_code">Invalid UPI QR code</string>
+    <string name="error_processing_qr">Error processing QR code</string>
+    
+    <!-- Success Messages -->
+    <string name="vpa_copied">VPA copied to clipboard</string>
+    <string name="payment_initiated">Payment initiated successfully</string>
+    <string name="call_connected">UPI call connected</string>
+    <string name="call_ended">UPI call ended</string>
+    
+</resources>

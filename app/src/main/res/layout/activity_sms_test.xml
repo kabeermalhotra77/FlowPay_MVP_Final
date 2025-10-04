@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#0A0A0A">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="SMS Detection Test"
+        android:textSize="24sp"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test different SMS formats to verify payment detection"
+        android:textSize="14sp"
+        android:textColor="#CCCCCC"
+        android:gravity="center"
+        android:layout_marginBottom="32dp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Basic SMS Test -->
+            <Button
+                android:id="@+id/btnTestBasicSMS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Test Basic SMS"
+                android:textColor="#FFFFFF"
+                android:background="#1F1F1F"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Bank-specific SMS Tests -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Bank-specific SMS Tests"
+                android:textSize="16sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp" />
+
+            <Button
+                android:id="@+id/btnTestHDFCSMS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Test HDFC SMS"
+                android:textColor="#FFFFFF"
+                android:background="#1F1F1F"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btnTestSBISMS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Test SBI SMS"
+                android:textColor="#FFFFFF"
+                android:background="#1F1F1F"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btnTestICICISMS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Test ICICI SMS"
+                android:textColor="#FFFFFF"
+                android:background="#1F1F1F"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btnTestPaytmSMS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Test Paytm SMS"
+                android:textColor="#FFFFFF"
+                android:background="#1F1F1F"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Transaction Status Tests -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Transaction Status Tests"
+                android:textSize="16sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp" />
+
+            <Button
+                android:id="@+id/btnTestFailedSMS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Test Failed Transaction SMS"
+                android:textColor="#FFFFFF"
+                android:background="#FF4444"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btnTestPendingSMS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Test Pending Transaction SMS"
+                android:textColor="#FFFFFF"
+                android:background="#FFAA00"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Comprehensive Test -->
+            <Button
+                android:id="@+id/btnTestAllSMS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Test All SMS Formats (Sequential)"
+                android:textColor="#FFFFFF"
+                android:background="#4CAF50"
+                android:layout_marginTop="16dp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Note: These tests simulate SMS broadcasts. Check logs for detailed information."
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:gravity="center"
+        android:layout_marginTop="16dp" />
+
+</LinearLayout>
+
+

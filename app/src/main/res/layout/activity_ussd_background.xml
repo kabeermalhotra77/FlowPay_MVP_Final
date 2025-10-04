@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+    
+    <!-- Button Container (Initially Hidden) -->
+    <LinearLayout
+        android:id="@+id/buttonContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="120dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+        
+        <!-- Circular Green Button -->
+        <FrameLayout
+            android:id="@+id/greenCompletionButton"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:background="@drawable/circular_button_bg"
+            android:elevation="6dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackgroundBorderless">
+            
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_arrow_forward"
+                android:tint="@android:color/white" />
+        </FrameLayout>
+        
+        <!-- Text Below Button -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Press when complete"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:gravity="center" />
+    </LinearLayout>
+    
+</FrameLayout>
