@@ -23,8 +23,6 @@ class PermissionManager(private val context: Context) {
             Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.RECEIVE_SMS,
             Manifest.permission.READ_SMS,
-            Manifest.permission.READ_CONTACTS,
-            Manifest.permission.CAMERA,
             Manifest.permission.VIBRATE
         )
         

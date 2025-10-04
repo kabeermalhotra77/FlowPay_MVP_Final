@@ -126,13 +126,29 @@ class MainActivityHelper(
     
     /**
      * Start QR scanning - public method for UI access
+     * @param isFromPermissionGrant true if called after permission grant, false if initiated by user
      */
-    fun startQRScanning() {
+    fun startQRScanning(isFromPermissionGrant: Boolean = false) {
         Log.d(TAG, "=== STARTING QR SCANNING ===")
         
-        // Check basic permissions first
+        // If this is called after permission grant, don't open QR scanner
+        // The form state restoration will handle showing the PayContactDialog
+        if (isFromPermissionGrant) {
+            Log.d(TAG, "Called after permission grant, not opening QR scanner")
+            return
+        }
+        
+        // Check camera permission first (most important for QR scanning)
+        if (permissionManager?.isPermissionGranted(Manifest.permission.CAMERA) != true) {
+            Log.d(TAG, "Camera permission not granted, opening QR scanner to request permission")
+            uiCallback.showToast("Opening QR scanner...")
+            openQRScanner()
+            return
+        }
+        
+        // Check other basic permissions
         if (permissionManager?.checkAllPermissions() != true) {
-            Log.d(TAG, "Basic permissions not granted, requesting...")
+            Log.d(TAG, "Other permissions not granted, requesting...")
             uiCallback.showToast("Requesting required permissions...")
             isRequestingPermissions = true
             permissionManager?.requestRequiredPermissions()
@@ -167,8 +183,9 @@ class MainActivityHelper(
                 isRequestingPermissions = false
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && 
                     android.provider.Settings.canDrawOverlays(context)) {
-                    Log.d(TAG, "Overlay permission granted, restarting QR scanning")
-                    startQRScanning()
+                    Log.d(TAG, "Overlay permission granted, not opening QR scanner - form state will be restored")
+                    // Don't open QR scanner, let form state restoration handle it
+                    startQRScanning(isFromPermissionGrant = true)
                 } else {
                     Log.w(TAG, "Overlay permission not granted, QR scanning cannot proceed")
                     uiCallback.showToast("Overlay permission is required for QR scanning. Please enable it in Settings.")

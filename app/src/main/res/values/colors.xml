@@ -53,4 +53,8 @@
     <color name="text_secondary">#FF666666</color>
     <color name="accent_primary">#FF2196F3</color>
     <color name="accent_secondary">#FF4CAF50</color>
+    
+    <!-- Dialog Colors -->
+    <color name="blue_primary">#FF7BA8F5</color>
+    <color name="white_alpha_light">#22FFFFFF</color>
 </resources>

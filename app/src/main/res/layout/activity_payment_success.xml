@@ -93,7 +93,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Paid to"
-                    android:textColor="#888888"
+                    android:textColor="#AAAAAA"
                     android:textSize="14sp" />
 
                 <TextView
@@ -103,7 +103,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text="John Doe"
-                    android:textColor="@android:color/white"
+                    android:textColor="#4A90E2"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium"
                     android:ellipsize="end"
@@ -122,7 +122,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Bank"
-                    android:textColor="#888888"
+                    android:textColor="#AAAAAA"
                     android:textSize="14sp" />
 
                 <TextView
@@ -132,7 +132,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text="HDFC Bank"
-                    android:textColor="@android:color/white"
+                    android:textColor="#4A90E2"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium" />
 
@@ -149,7 +149,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Transaction ID"
-                    android:textColor="#888888"
+                    android:textColor="#AAAAAA"
                     android:textSize="14sp" />
 
                 <TextView
@@ -159,7 +159,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text="TXN123456"
-                    android:textColor="@android:color/white"
+                    android:textColor="#4A90E2"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium"
                     android:ellipsize="middle"
@@ -178,7 +178,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Date &amp; Time"
-                    android:textColor="#888888"
+                    android:textColor="#AAAAAA"
                     android:textSize="14sp" />
 
                 <TextView
@@ -188,7 +188,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text="01 Jan 2024, 12:00 PM"
-                    android:textColor="@android:color/white"
+                    android:textColor="#4A90E2"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium" />
 
@@ -206,7 +206,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="UPI ID"
-                    android:textColor="#888888"
+                    android:textColor="#AAAAAA"
                     android:textSize="14sp" />
 
                 <TextView
@@ -216,7 +216,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text="user@upi"
-                    android:textColor="@android:color/white"
+                    android:textColor="#4A90E2"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium" />
 
@@ -235,7 +235,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="80dp"
-        android:background="@drawable/button_gradient_bg"
+        android:background="@drawable/button_gradient_background"
         android:text="Done"
         android:textColor="@android:color/white"
         android:textSize="16sp"

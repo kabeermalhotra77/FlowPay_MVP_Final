@@ -70,27 +70,45 @@ class PermissionManager(private val activity: Activity) {
     
     
     /**
-     * Requests overlay permission
+     * Requests overlay permission with custom styled dialog
      */
     fun requestOverlayPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !canDrawOverlays(activity)) {
-            // Show explanation dialog first
-            android.app.AlertDialog.Builder(activity)
-                .setTitle("Overlay Permission Required")
-                .setMessage("FlowPay needs overlay permission to show payment protection dialogs during USSD calls.\n\n" +
-                    "This helps protect you from fraud by showing secure payment instructions.\n\n" +
-                    "Please grant overlay permission to continue.")
-                .setPositiveButton("Grant Overlay Permission") { _, _ ->
-                    val intent = Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:${activity.packageName}")
-                    )
-                    activity.startActivityForResult(intent, PermissionConstants.OVERLAY_PERMISSION_REQ_CODE)
-                }
-                .setNegativeButton("Cancel", null)
-                .setCancelable(false)
-                .show()
+            // Show custom styled dialog
+            showCustomOverlayPermissionDialog()
         }
+    }
+    
+    /**
+     * Show custom styled overlay permission dialog
+     */
+    private fun showCustomOverlayPermissionDialog() {
+        val dialog = android.app.AlertDialog.Builder(activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+            .create()
+        
+        // Create custom layout
+        val inflater = activity.layoutInflater
+        val dialogView = inflater.inflate(com.flowpay.app.R.layout.dialog_overlay_permission, null)
+        
+        // Set up the dialog
+        dialog.setView(dialogView)
+        dialog.setCancelable(false)
+        
+        // Set up button click listeners
+        dialogView.findViewById<android.widget.Button>(com.flowpay.app.R.id.btn_grant_permission)?.setOnClickListener {
+            dialog.dismiss()
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:${activity.packageName}")
+            )
+            activity.startActivityForResult(intent, PermissionConstants.OVERLAY_PERMISSION_REQ_CODE)
+        }
+        
+        dialogView.findViewById<android.widget.Button>(com.flowpay.app.R.id.btn_cancel)?.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        dialog.show()
     }
     
     /**

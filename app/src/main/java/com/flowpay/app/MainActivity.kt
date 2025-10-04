@@ -40,6 +40,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -95,6 +96,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -133,6 +135,7 @@ import com.flowpay.app.ui.activities.TransactionHistoryActivity
 import com.flowpay.app.ui.activities.SettingsActivity
 import com.flowpay.app.ui.dialogs.Contact
 import com.flowpay.app.ui.dialogs.ContactPickerDialog
+import com.flowpay.app.managers.FormStateManager
 import com.flowpay.app.managers.PermissionManager
 import com.flowpay.app.utils.TestTransactionGenerator
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -158,6 +161,9 @@ class MainActivity : ComponentActivity() {
 
     // Helper for all business logic
     private lateinit var helper: MainActivityHelper
+    
+    // Form state manager for preserving form data
+    private lateinit var formStateManager: FormStateManager
     
     // SMS Receiver
     private var smsReceiver: SimpleSMSReceiver? = null
@@ -370,6 +376,9 @@ class MainActivity : ComponentActivity() {
             }
         })
         
+        // Initialize form state manager
+        formStateManager = FormStateManager(this)
+        
         // Initialize helper
         helper.initialize()
         
@@ -400,7 +409,8 @@ class MainActivity : ComponentActivity() {
                     },
                     onQRScanClick = {
                         helper.startQRScanning()
-                    }
+                    },
+                    formStateManager = formStateManager
                 )
             }
         }
@@ -826,7 +836,8 @@ fun PaymentActionButtons(
 @Composable
 fun MainScreen(
     onInitiateTransfer: (String, String) -> Unit,
-    onQRScanClick: () -> Unit
+    onQRScanClick: () -> Unit,
+    formStateManager: FormStateManager
 ) {
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
@@ -872,6 +883,14 @@ fun MainScreen(
         MainActivity.resetQRScanningStateCallback = {
             isScanning = false
             Log.d("MainActivity", "✅ QR scanning state reset to false via callback")
+        }
+    }
+    
+    // Check for form state restoration when returning from permission grant
+    LaunchedEffect(Unit) {
+        if (formStateManager.hasValidFormState()) {
+            Log.d("MainActivity", "Form state found, restoring PayContactDialog")
+            showPayContact = true
         }
     }
     
@@ -1392,11 +1411,18 @@ fun MainScreen(
             // Dialogs
             if (showPayContact) {
                 PayContactDialog(
-                    onDismiss = { showPayContact = false },
+                    onDismiss = { 
+                        showPayContact = false
+                        // Clear form state when dialog is dismissed
+                        formStateManager.clearFormState()
+                    },
                     onConfirm = { phone, amt ->
                         showPayContact = false
+                        // Mark form as submitted
+                        formStateManager.markFormSubmitted()
                         onInitiateTransfer(phone, amt)
-                    }
+                    },
+                    formStateManager = formStateManager
                 )
             }
 
@@ -1498,17 +1524,231 @@ fun TransactionItem(payment: PaymentDetails) {
     }
 }
 
+/**
+ * Show contact permission explanation dialog with main screen aesthetic
+ */
+@Composable
+fun ContactPermissionDialog(
+    onDismiss: () -> Unit,
+    onGrantPermission: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = Color.Black.copy(alpha = 0.15f),
+                spotColor = Color.Black.copy(alpha = 0.15f)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF7BA8F5), // Lighter, softer blue (top)
+                            Color(0xFF6A96EE)  // Lighter blue with slight depth (bottom)
+                        )
+                    ),
+                    shape = RoundedCornerShape(20.dp)
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                // Header with Icon
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Contact Icon
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                Color.White.copy(alpha = 0.22f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PermContactCalendar,
+                            contentDescription = "Contact Icon",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    Column {
+                        Text(
+                            text = "Contact Permission Required",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            style = TextStyle(
+                                shadow = Shadow(
+                                    color = Color.Black.copy(alpha = 0.15f),
+                                    offset = Offset(0f, 2f),
+                                    blurRadius = 6f
+                                )
+                            )
+                        )
+                        Text(
+                            text = "FlowPay needs contact access for easy transfers",
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+                
+                // Content Card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 20.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White.copy(alpha = 0.15f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp)
+                    ) {
+                        Text(
+                            text = "This permission allows you to:",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        
+                        // Feature List
+                        listOf(
+                            "Browse your contacts",
+                            "Select recipients quickly", 
+                            "Avoid typing phone numbers"
+                        ).forEach { feature ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(
+                                            Color.White.copy(alpha = 0.8f),
+                                            CircleShape
+                                        )
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = feature,
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Text(
+                            text = "Your contact information is not stored or shared.",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 12.sp,
+                            fontStyle = FontStyle.Italic
+                        )
+                    }
+                }
+                
+                // Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Cancel Button
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White.copy(alpha = 0.22f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    // Grant Permission Button
+                    Button(
+                        onClick = onGrantPermission,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Grant Permission",
+                            color = Color(0xFF7BA8F5),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun PayContactDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String) -> Unit
+    onConfirm: (String, String) -> Unit,
+    formStateManager: FormStateManager
 ) {
     val context = LocalContext.current
-    var phoneNumber by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var selectedContactName by remember { mutableStateOf<String?>(null) }
-    var showContactPicker by remember { mutableStateOf(false) }
     val permissionManager = remember { PermissionManager(context as ComponentActivity) }
+    
+    // Load form state if available
+    val savedFormState = remember { formStateManager.loadFormState() }
+    
+    var phoneNumber by remember { mutableStateOf(savedFormState?.phoneNumber ?: "") }
+    var amount by remember { mutableStateOf(savedFormState?.amount ?: "") }
+    var selectedContactName by remember { mutableStateOf(savedFormState?.contactName) }
+    var showContactPicker by remember { mutableStateOf(false) }
+    var showContactPermissionDialog by remember { mutableStateOf(false) }
+    
+    // Check if amount exceeds 4998 - only validate if it's a valid number
+    val amountValue = amount.toIntOrNull() ?: 0
+    val isAmountValid = amount.isNotEmpty() && amountValue > 0 && amountValue <= 4998
+    val amountError = when {
+        amount.isNotEmpty() && amountValue <= 0 -> "Please enter a valid amount"
+        amount.isNotEmpty() && amountValue >= 4999 -> "Max limit should be less than 4999"
+        else -> ""
+    }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1569,6 +1809,8 @@ fun PayContactDialog(
                             if (it.all { char -> char.isDigit() } && it.length <= 10) {
                                 phoneNumber = it
                                 selectedContactName = null // Clear contact name if manually editing
+                                // Save form state
+                                formStateManager.updatePhoneNumber(phoneNumber)
                             }
                         },
                         label = { Text("Mobile Number", color = Color(0xFF8A8A8A)) },
@@ -1593,8 +1835,8 @@ fun PayContactDialog(
                             if (permissionManager.hasContactPermission()) {
                                 showContactPicker = true
                             } else {
-                                // Request permission
-                                permissionManager.requestContactPermission()
+                                // Show contact permission explanation dialog
+                                showContactPermissionDialog = true
                             }
                         },
                         modifier = Modifier
@@ -1615,33 +1857,51 @@ fun PayContactDialog(
                 
                 OutlinedTextField(
                     value = amount,
-                    onValueChange = { 
-                        if (it.all { char -> char.isDigit() } && it.length <= 6) {
-                            amount = it
-                        }
+                    onValueChange = { newValue ->
+                        // Always update the amount - no restrictions on input
+                        amount = newValue
+                        // Save form state
+                        formStateManager.updateAmount(amount)
                     },
                     label = { Text("Amount (₹)", color = Color(0xFF8A8A8A)) },
                     placeholder = { Text("Enter amount", color = Color(0xFF6A6A6A)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    isError = amountError.isNotEmpty(),
+                    textStyle = TextStyle(
+                        fontSize = if (amount.length > 8) 14.sp else 16.sp,
+                        color = Color.White
+                    ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF4A4A4A),
-                        unfocusedBorderColor = Color(0xFF3A3A3A),
+                        focusedBorderColor = if (amountError.isNotEmpty()) Color(0xFFE53E3E) else Color(0xFF4A4A4A),
+                        unfocusedBorderColor = if (amountError.isNotEmpty()) Color(0xFFE53E3E) else Color(0xFF3A3A3A),
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent
                     )
                 )
+                
+                // Show error message if amount is invalid
+                if (amountError.isNotEmpty()) {
+                    Text(
+                        text = amountError,
+                        color = Color(0xFFE53E3E),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(phoneNumber, amount) },
-                enabled = phoneNumber.length == 10 && amount.isNotEmpty() && amount != "0"
+                enabled = phoneNumber.length == 10 && amount.isNotEmpty() && amount != "0" && isAmountValid
             ) {
-                Text("Transfer", color = if (phoneNumber.length == 10 && amount.isNotEmpty()) Color(0xFF4A90E2) else Color(0xFF6A6A6A))
+                Text("Transfer", color = if (phoneNumber.length == 10 && amount.isNotEmpty() && amount != "0" && isAmountValid) Color(0xFF4A90E2) else Color(0xFF6A6A6A))
             }
         },
         dismissButton = {
@@ -1659,6 +1919,20 @@ fun PayContactDialog(
                 phoneNumber = contact.phoneNumber
                 selectedContactName = contact.name
                 showContactPicker = false
+                // Save form state
+                formStateManager.updatePhoneNumber(phoneNumber)
+                formStateManager.updateContactName(selectedContactName)
+            }
+        )
+    }
+    
+    // Show contact permission dialog
+    if (showContactPermissionDialog) {
+        ContactPermissionDialog(
+            onDismiss = { showContactPermissionDialog = false },
+            onGrantPermission = {
+                showContactPermissionDialog = false
+                permissionManager.requestContactPermission()
             }
         )
     }

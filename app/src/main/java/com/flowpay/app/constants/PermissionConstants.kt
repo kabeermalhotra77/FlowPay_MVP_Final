@@ -12,10 +12,8 @@ object PermissionConstants {
         Manifest.permission.CALL_PHONE,
         Manifest.permission.READ_PHONE_STATE,
         Manifest.permission.MODIFY_AUDIO_SETTINGS,
-        Manifest.permission.CAMERA,
         Manifest.permission.RECEIVE_SMS,
         Manifest.permission.READ_SMS,
-        Manifest.permission.READ_CONTACTS,
         Manifest.permission.VIBRATE
     )
     

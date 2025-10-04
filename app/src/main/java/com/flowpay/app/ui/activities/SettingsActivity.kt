@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -53,15 +54,15 @@ class SettingsActivity : ComponentActivity() {
     }
 }
 
-// Theme
+// Theme - Updated to match main screen
 @Composable
 fun FlowPaySettingsTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = Color(0xFF667EEA),
-            secondary = Color(0xFF764BA2),
-            background = Color(0xFF0A0A0A),
-            surface = Color(0xFF1A1A1A),
+            primary = Color(0xFF7BA8F5), // Main screen blue
+            secondary = Color(0xFF6A96EE), // Main screen blue variant
+            background = Color(0xFF000000), // Pure black like main screen
+            surface = Color(0xFF0A0A0A), // Card background matching main screen
             onBackground = Color.White,
             onSurface = Color.White
         )
@@ -147,7 +148,7 @@ class SettingsViewModel : androidx.lifecycle.ViewModel() {
     }
 }
 
-// Main Settings Screen
+// Main Settings Screen - Redesigned to match main screen UI
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -157,7 +158,6 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showSaveIndicator by remember { mutableStateOf(false) }
-    var expandedSection by remember { mutableStateOf<String?>(null) }
 
     // Permission checker
     LaunchedEffect(Unit) {
@@ -181,271 +181,373 @@ fun SettingsScreen(
         viewModel.updatePermissions(permissions)
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF0A0A0A))
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar
-            TopAppBar(
-                title = {
-                    Text(
-                        "Settings",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                showSaveIndicator = true
-                                delay(2000)
-                                showSaveIndicator = false
-                            }
-                        }
-                    ) {
-                        Text(
-                            "Save",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0A0A0A)
-                )
-            )
+    // Main screen colors and theme
+    val backgroundColor = Color(0xFF000000) // Pure black like main screen
+    val primaryColor = Color(0xFF7BA8F5) // Main blue color from main screen
+    val cardColor = Color(0xFF0A0A0A) // Card background matching main screen
+    val borderColor = Color(0xFF333333) // Subtle borders
 
-            // Settings Content
-            LazyColumn(
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = backgroundColor
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(backgroundColor)
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .widthIn(max = 420.dp) // Match main screen width constraint
+                    .align(Alignment.Center)
+                    .background(backgroundColor)
             ) {
-                // Profile Card
-                item {
-                    ProfileCard()
-                }
-
-                // Bank Configuration Section
-                item {
-                    SettingsSection(
-                        title = "BANK CONFIGURATION",
-                        expanded = expandedSection == "bank",
-                        onToggleExpand = {
-                            expandedSection = if (expandedSection == "bank") null else "bank"
-                        }
+                // Add spacing from status bar
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Header Card - Matching main screen gradient design
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .height(180.dp)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            ambientColor = Color.Black.copy(alpha = 0.15f),
+                            spotColor = Color.Black.copy(alpha = 0.15f)
+                        ),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Transparent
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color(0xFF7BA8F5), // Lighter, softer blue (top)
+                                        Color(0xFF6A96EE)  // Lighter blue with slight depth (bottom)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(20.dp)
+                            )
                     ) {
-                        BankConfigurationContent(viewModel)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
+                        ) {
+                            // Top Section with Title and Back Button
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = onBackPressed,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(
+                                            Color.White.copy(alpha = 0.2f),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                
+                                TextButton(
+                                    onClick = {
+                                        scope.launch {
+                                            showSaveIndicator = true
+                                            delay(2000)
+                                            showSaveIndicator = false
+                                        }
+                                    },
+                                    colors = ButtonDefaults.textButtonColors(
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Text(
+                                        "Save",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            // Title and Subtitle
+                            Text(
+                                "Settings",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Configure your FlowPay experience",
+                                fontSize = 16.sp,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
                     }
                 }
 
-                // USSD Configuration Section
-                item {
-                    SettingsSection(
-                        title = "USSD CONFIGURATION",
-                        expanded = expandedSection == "ussd",
-                        onToggleExpand = {
-                            expandedSection = if (expandedSection == "ussd") null else "ussd"
-                        }
-                    ) {
-                        UssdConfigurationContent(viewModel)
+                // Settings Content - Modern card-based layout
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Profile Card
+                    item {
+                        ModernProfileCard()
                     }
-                }
 
-                // Permissions Management Section
-                item {
-                    SettingsSection(
-                        title = "PERMISSIONS",
-                        expanded = expandedSection == "permissions",
-                        onToggleExpand = {
-                            expandedSection = if (expandedSection == "permissions") null else "permissions"
-                        }
-                    ) {
-                        PermissionsContent(viewModel)
+                    // Bank Configuration Card
+                    item {
+                        ModernSettingsCard(
+                            title = "Bank Configuration",
+                            icon = "🏦",
+                            content = { BankConfigurationContent(viewModel) }
+                        )
                     }
-                }
 
-                // SMS Detection Section
-                item {
-                    SettingsSection(
-                        title = "SMS DETECTION",
-                        expanded = expandedSection == "sms",
-                        onToggleExpand = {
-                            expandedSection = if (expandedSection == "sms") null else "sms"
-                        }
-                    ) {
-                        SmsDetectionContent(viewModel)
+                    // USSD Configuration Card
+                    item {
+                        ModernSettingsCard(
+                            title = "USSD Configuration",
+                            icon = "📱",
+                            content = { UssdConfigurationContent(viewModel) }
+                        )
                     }
-                }
 
-                // Notifications Section
-                item {
-                    SettingsSection(
-                        title = "NOTIFICATIONS",
-                        expanded = expandedSection == "notifications",
-                        onToggleExpand = {
-                            expandedSection = if (expandedSection == "notifications") null else "notifications"
-                        }
-                    ) {
-                        NotificationsContent(viewModel)
+                    // Permissions Card
+                    item {
+                        ModernSettingsCard(
+                            title = "Permissions",
+                            icon = "🔐",
+                            content = { PermissionsContent(viewModel) }
+                        )
                     }
-                }
 
-                // Advanced Settings Section
-                item {
-                    SettingsSection(
-                        title = "ADVANCED",
-                        expanded = expandedSection == "advanced",
-                        onToggleExpand = {
-                            expandedSection = if (expandedSection == "advanced") null else "advanced"
-                        }
-                    ) {
-                        AdvancedSettingsContent(viewModel)
+                    // SMS Detection Card
+                    item {
+                        ModernSettingsCard(
+                            title = "SMS Detection",
+                            icon = "📨",
+                            content = { SmsDetectionContent(viewModel) }
+                        )
                     }
-                }
 
-                // App Info Section
-                item {
-                    SettingsSection(
-                        title = "APP INFORMATION",
-                        expanded = expandedSection == "info",
-                        onToggleExpand = {
-                            expandedSection = if (expandedSection == "info") null else "info"
-                        }
-                    ) {
-                        AppInfoContent()
+                    // Notifications Card
+                    item {
+                        ModernSettingsCard(
+                            title = "Notifications",
+                            icon = "🔔",
+                            content = { NotificationsContent(viewModel) }
+                        )
                     }
-                }
 
-                // Danger Zone
-                item {
-                    DangerZone()
-                    Spacer(modifier = Modifier.height(32.dp))
+                    // Advanced Settings Card
+                    item {
+                        ModernSettingsCard(
+                            title = "Advanced",
+                            icon = "⚙️",
+                            content = { AdvancedSettingsContent(viewModel) }
+                        )
+                    }
+
+                    // App Info Card
+                    item {
+                        ModernSettingsCard(
+                            title = "App Information",
+                            icon = "ℹ️",
+                            content = { AppInfoContent() }
+                        )
+                    }
+
+                    // Danger Zone
+                    item {
+                        ModernDangerZone()
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
                 }
             }
-        }
 
-        // Save Indicator
-        AnimatedVisibility(
-            visible = showSaveIndicator,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF667EEA)
-                ),
-                shape = RoundedCornerShape(50.dp)
+            // Save Indicator - Enhanced design
+            AnimatedVisibility(
+                visible = showSaveIndicator,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = primaryColor
+                    ),
+                    shape = RoundedCornerShape(25.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Check,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Settings Saved",
-                        color = Color.White,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            "Settings Saved Successfully",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-// Profile Card Component
+// Modern Profile Card - Matching main screen design
 @Composable
-fun ProfileCard() {
+fun ModernProfileCard() {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1A1A1A).copy(alpha = 0.5f)
-        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = Color.Black.copy(alpha = 0.15f),
+                spotColor = Color.Black.copy(alpha = 0.15f)
+            ),
         shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, Color(0xFF2A2A2A))
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF0A0A0A) // Match main screen card color
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            // Background Gradient
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Profile Avatar with gradient background
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
+                    .size(70.dp)
+                    .clip(RoundedCornerShape(20.dp))
                     .background(
                         Brush.linearGradient(
                             colors = listOf(
-                                Color(0xFF667EEA).copy(alpha = 0.1f),
-                                Color(0xFF764BA2).copy(alpha = 0.1f)
+                                Color(0xFF7BA8F5), // Main screen blue
+                                Color(0xFF6A96EE)  // Main screen blue variant
                             )
                         )
-                    )
-            )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "FP",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
 
-            // Content
+            Spacer(modifier = Modifier.width(20.dp))
+
+            Column {
+                Text(
+                    "FlowPay User",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "UPI ID: user@hdfc",
+                    fontSize = 14.sp,
+                    color = Color(0xFF888888) // Consistent with main screen
+                )
+            }
+        }
+    }
+}
+
+// Modern Settings Card - Clean, non-expandable design
+@Composable
+fun ModernSettingsCard(
+    title: String,
+    icon: String,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = Color.Black.copy(alpha = 0.15f),
+                spotColor = Color.Black.copy(alpha = 0.15f)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF0A0A0A) // Match main screen card color
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            // Card Header
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(70.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF667EEA), Color(0xFF764BA2))
-                            )
-                        ),
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF7BA8F5).copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "FP",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Text(icon, fontSize = 20.sp)
                 }
-
-                Spacer(modifier = Modifier.width(20.dp))
-
-                Column {
-                    Text(
-                        "FlowPay User",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "UPI ID: user@hdfc",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Text(
+                    title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
             }
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Card Content
+            content()
         }
     }
 }
@@ -795,7 +897,7 @@ fun AppInfoContent() {
     }
 }
 
-// Setting Item Component
+// Modern Setting Item Component - Enhanced design
 @Composable
 fun SettingItem(
     icon: String,
@@ -806,14 +908,14 @@ fun SettingItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(44.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF2A2A2A)),
+                .background(Color(0xFF7BA8F5).copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Text(icon, fontSize = 20.sp)
@@ -825,14 +927,15 @@ fun SettingItem(
             Text(
                 title,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 color = Color.White
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 subtitle,
-                fontSize = 13.sp,
-                color = Color.Gray,
-                maxLines = 1,
+                fontSize = 14.sp,
+                color = Color(0xFF888888),
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }
@@ -841,7 +944,7 @@ fun SettingItem(
     }
 }
 
-// Permission Item Component
+// Modern Permission Item Component
 @Composable
 fun PermissionItem(
     title: String,
@@ -852,77 +955,127 @@ fun PermissionItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 title,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 color = Color.White
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 description,
-                fontSize = 13.sp,
-                color = Color.Gray
+                fontSize = 14.sp,
+                color = Color(0xFF888888)
             )
         }
         
         if (granted) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF43E97B).copy(alpha = 0.2f),
-                border = BorderStroke(1.dp, Color(0xFF43E97B).copy(alpha = 0.5f))
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF4CAF50).copy(alpha = 0.2f),
+                border = BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.5f))
             ) {
-                Text(
-                    text = "Granted", 
-                    color = Color(0xFF43E97B), 
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Granted", 
+                        color = Color(0xFF4CAF50), 
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         } else {
             Button(
                 onClick = onRequest,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFF5576C).copy(alpha = 0.2f)
+                    containerColor = Color(0xFF7BA8F5).copy(alpha = 0.2f)
                 ),
+                shape = RoundedCornerShape(20.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Text("Grant", color = Color(0xFFF5576C), fontSize = 12.sp)
+                Text(
+                    "Grant", 
+                    color = Color(0xFF7BA8F5), 
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
 }
 
-// Danger Zone Component
+// Modern Danger Zone Component
 @Composable
-fun DangerZone() {
+fun ModernDangerZone() {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = Color.Black.copy(alpha = 0.15f),
+                spotColor = Color.Black.copy(alpha = 0.15f)
+            ),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF5576C).copy(alpha = 0.1f)
+            containerColor = Color(0xFF0A0A0A) // Match main screen card color
         ),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, Color(0xFFF5576C).copy(alpha = 0.3f))
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("⚠️", fontSize = 20.sp)
-                Spacer(modifier = Modifier.width(8.dp))
+            // Header with warning icon
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFF5722).copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("⚠️", fontSize = 20.sp)
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
                 Text(
                     "Danger Zone",
-                    fontSize = 14.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFF5576C)
+                    color = Color.White
                 )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
+            Text(
+                "These actions cannot be undone. Proceed with caution.",
+                fontSize = 14.sp,
+                color = Color(0xFF888888),
+                lineHeight = 20.sp
+            )
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -931,22 +1084,32 @@ fun DangerZone() {
                     onClick = { /* Clear data */ },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFFF5576C)
+                        contentColor = Color(0xFFFF5722)
                     ),
-                    border = BorderStroke(1.dp, Color(0xFFF5576C).copy(alpha = 0.3f))
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFF5722).copy(alpha = 0.5f))
                 ) {
-                    Text("Clear Data", fontSize = 14.sp)
+                    Text(
+                        "Clear Data", 
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
                 
                 OutlinedButton(
                     onClick = { /* Reset settings */ },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFFF5576C)
+                        contentColor = Color(0xFFFF5722)
                     ),
-                    border = BorderStroke(1.dp, Color(0xFFF5576C).copy(alpha = 0.3f))
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFF5722).copy(alpha = 0.5f))
                 ) {
-                    Text("Reset", fontSize = 14.sp)
+                    Text(
+                        "Reset All", 
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }

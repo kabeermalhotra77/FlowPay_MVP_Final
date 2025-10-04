@@ -152,9 +152,15 @@ class QRScannerActivity : ComponentActivity() {
             val smsFilter = IntentFilter("com.flowpay.app.SMS_RECEIVED")
             LocalBroadcastManager.getInstance(this).registerReceiver(smsReceiver, smsFilter)
             
-            // Check permissions before starting camera
-            Log.d("QRScanner", "Starting permission check...")
-            checkPermissionsAndStartCamera()
+            // Check camera permission first before showing request screen
+            Log.d("QRScanner", "Checking camera permission...")
+            if (permissionManager.isPermissionGranted(Manifest.permission.CAMERA)) {
+                Log.d("QRScanner", "Camera permission already granted, starting camera")
+                checkPermissionsAndStartCamera()
+            } else {
+                Log.d("QRScanner", "Camera permission not granted, showing request screen...")
+                showCameraPermissionRequestScreen()
+            }
             
         } catch (e: Exception) {
             Log.e("QRScanner", "Error in onCreate: ${e.message}", e)
@@ -162,6 +168,77 @@ class QRScannerActivity : ComponentActivity() {
             setResult(RESULT_ERROR)
             finish()
         }
+    }
+    
+    /**
+     * Show camera permission request screen
+     */
+    private fun showCameraPermissionRequestScreen() {
+        Log.d("QRScanner", "Showing camera permission request screen")
+        
+        // Show a screen with camera permission request
+        runOnUiThread {
+            // Hide camera view and show permission request UI
+            viewFinder.visibility = View.GONE
+            scannerOverlay.visibility = View.GONE
+            progressBar.visibility = View.GONE
+            topBar.visibility = View.VISIBLE
+            
+            // Show permission request message
+            tvStatus.text = "Camera permission required to scan QR codes"
+            tvStatus.visibility = View.VISIBLE
+            tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+            tvStatus.textSize = 18f
+            
+            // Show instructions box with permission request
+            instructionsBox.visibility = View.VISIBLE
+            instructionsHeaderInitial.visibility = View.VISIBLE
+            instructionsExpanded.visibility = View.GONE
+            
+            // Set black background
+            findViewById<View>(android.R.id.content).setBackgroundColor(ContextCompat.getColor(this, android.R.color.black))
+        }
+        
+        // Show permission explanation dialog
+        showCameraPermissionExplanationDialog()
+    }
+    
+    /**
+     * Show camera permission explanation dialog with main screen aesthetic
+     */
+    private fun showCameraPermissionExplanationDialog() {
+        val dialog = AlertDialog.Builder(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+            .create()
+        
+        // Create custom layout
+        val inflater = layoutInflater
+        val dialogView = inflater.inflate(R.layout.dialog_camera_permission, null)
+        
+        // Set up the dialog
+        dialog.setView(dialogView)
+        dialog.setCancelable(false)
+        
+        // Set up button click listeners
+        dialogView.findViewById<android.widget.Button>(R.id.btn_grant_camera_permission)?.setOnClickListener {
+            dialog.dismiss()
+            requestCameraPermission()
+        }
+        
+        dialogView.findViewById<android.widget.Button>(R.id.btn_cancel_camera)?.setOnClickListener {
+            dialog.dismiss()
+            setResult(RESULT_CANCELLED)
+            finish()
+        }
+        
+        dialog.show()
+    }
+    
+    /**
+     * Request camera permission specifically
+     */
+    private fun requestCameraPermission() {
+        Log.d("QRScanner", "Requesting camera permission")
+        permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
     }
     
     /**
@@ -218,6 +295,7 @@ class QRScannerActivity : ComponentActivity() {
                 requestBasicPermissions()
             }
             .setNegativeButton("Cancel") { _, _ ->
+                // Return to main UI when cancelled
                 setResult(RESULT_CANCELLED)
                 finish()
             }
@@ -237,30 +315,48 @@ class QRScannerActivity : ComponentActivity() {
     }
     
     /**
-     * Request overlay permission for USSD functionality
+     * Request overlay permission for USSD functionality with custom styled dialog
      */
     private fun requestOverlayPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Show explanation dialog first
-            AlertDialog.Builder(this)
-                .setTitle("Overlay Permission Required")
-                .setMessage("FlowPay needs overlay permission to show payment guidance during USSD calls.\n\n" +
-                    "This helps protect you from fraud by showing secure payment instructions.\n\n" +
-                    "Please grant overlay permission to continue.")
-                .setPositiveButton("Grant Overlay Permission") { _, _ ->
-                    val intent = Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:$packageName")
-                    )
-                    overlayPermissionLauncher.launch(intent)
-                }
-                .setNegativeButton("Cancel") { _, _ ->
-                    setResult(RESULT_CANCELLED)
-                    finish()
-                }
-                .setCancelable(false)
-                .show()
+            // Show custom styled dialog
+            showCustomOverlayPermissionDialog()
         }
+    }
+    
+    /**
+     * Show custom styled overlay permission dialog
+     */
+    private fun showCustomOverlayPermissionDialog() {
+        val dialog = AlertDialog.Builder(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+            .create()
+        
+        // Create custom layout
+        val inflater = layoutInflater
+        val dialogView = inflater.inflate(R.layout.dialog_overlay_permission, null)
+        
+        // Set up the dialog
+        dialog.setView(dialogView)
+        dialog.setCancelable(false)
+        
+        // Set up button click listeners
+        dialogView.findViewById<android.widget.Button>(R.id.btn_grant_permission)?.setOnClickListener {
+            dialog.dismiss()
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            overlayPermissionLauncher.launch(intent)
+        }
+        
+        dialogView.findViewById<android.widget.Button>(R.id.btn_cancel)?.setOnClickListener {
+            dialog.dismiss()
+            // Return to main UI when cancelled
+            setResult(RESULT_CANCELLED)
+            finish()
+        }
+        
+        dialog.show()
     }
     
     /**
@@ -270,28 +366,28 @@ class QRScannerActivity : ComponentActivity() {
         val allGranted = permissions.values.all { it }
         
         if (allGranted) {
-            Log.d("QRScanner", "All basic permissions granted")
-            // Check overlay permission next
-            if (!permissionManager.canDrawOverlays()) {
+            Log.d("QRScanner", "Camera permission granted")
+            // Check other required permissions before starting camera
+            if (!permissionManager.checkAllPermissions()) {
+                Log.d("QRScanner", "Other permissions not granted, requesting...")
+                showPermissionExplanationDialog()
+            } else if (!permissionManager.canDrawOverlays()) {
+                Log.d("QRScanner", "Overlay permission not granted, requesting...")
                 requestOverlayPermission()
             } else {
+                Log.d("QRScanner", "All permissions granted, starting camera")
+                // Show camera view and start camera
+                showCameraView()
                 startCamera()
             }
         } else {
             val deniedPermissions = permissions.filter { !it.value }.keys
-            Log.w("QRScanner", "Some permissions denied: $deniedPermissions")
-            
-            val deniedNames = deniedPermissions.mapNotNull { permission ->
-                PermissionConstants.PERMISSION_DESCRIPTIONS[permission]
-            }
+            Log.w("QRScanner", "Camera permission denied: $deniedPermissions")
             
             val message = buildString {
-                append("The following permissions were denied:\n\n")
-                deniedNames.forEach { description ->
-                    append("• $description\n")
-                }
-                append("\nWithout these permissions, QR scanning and payment processing cannot work.\n\n")
-                append("Please go to Settings > Apps > FlowPay > Permissions and grant all required permissions.")
+                append("Camera permission is required to scan QR codes.\n\n")
+                append("Without camera permission, QR scanning cannot work.\n\n")
+                append("Please go to Settings > Apps > FlowPay > Permissions and grant camera permission.")
             }
             
             showPermissionError(message)
@@ -304,10 +400,33 @@ class QRScannerActivity : ComponentActivity() {
     private fun handleOverlayPermissionResult() {
         if (permissionManager.canDrawOverlays()) {
             Log.d("QRScanner", "Overlay permission granted")
+            // Show camera view and start camera
+            showCameraView()
             startCamera()
         } else {
             Log.w("QRScanner", "Overlay permission denied")
             showPermissionError("Overlay permission is required for USSD payment guidance.")
+        }
+    }
+    
+    /**
+     * Show camera view after permissions are granted
+     */
+    private fun showCameraView() {
+        Log.d("QRScanner", "Showing camera view")
+        
+        runOnUiThread {
+            // Show camera view and hide permission request UI
+            viewFinder.visibility = View.VISIBLE
+            scannerOverlay.visibility = View.VISIBLE
+            topBar.visibility = View.VISIBLE
+            
+            // Hide permission request elements
+            tvStatus.visibility = View.GONE
+            instructionsBox.visibility = View.GONE
+            
+            // Set black background for camera
+            findViewById<View>(android.R.id.content).setBackgroundColor(ContextCompat.getColor(this, android.R.color.black))
         }
     }
     
@@ -319,7 +438,8 @@ class QRScannerActivity : ComponentActivity() {
             .setTitle("Permission Required")
             .setMessage(message)
             .setPositiveButton("OK") { _, _ ->
-                setResult(RESULT_ERROR)
+                // Return to main UI instead of error
+                setResult(RESULT_CANCELLED)
                 finish()
             }
             .setCancelable(false)
