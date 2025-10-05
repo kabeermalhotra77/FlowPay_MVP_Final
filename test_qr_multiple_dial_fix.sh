@@ -47,9 +47,10 @@ echo ""
 
 # Count USSD dial attempts
 ussd_count=0
+lifecycle_fix_shown=0
 while true; do
     # Check for USSD dial logs
-    ussd_logs=$(adb logcat -d | grep "Dialing USSD code: \*99\*1\*3#" | wc -l)
+    ussd_logs=$(adb logcat -d | grep "Preparing to dial USSD: \*99\*1\*3#" | wc -l)
     
     if [ "$ussd_logs" -gt "$ussd_count" ]; then
         ussd_count=$ussd_logs
@@ -67,6 +68,20 @@ while true; do
     processing_logs=$(adb logcat -d | grep "Already processing QR code, ignoring duplicate detection" | wc -l)
     if [ "$processing_logs" -gt 0 ]; then
         echo "✅ Duplicate detection prevention working (blocked $processing_logs duplicate attempts)"
+    fi
+    
+    # Check for lifecycle fix logs
+    if [ "$lifecycle_fix_shown" -eq 0 ]; then
+        lifecycle_logs=$(adb logcat -d | grep "USSD process active - keeping processing flag to prevent re-dial" | wc -l)
+        if [ "$lifecycle_logs" -gt 0 ]; then
+            echo "✅ Lifecycle fix working - processing flag preserved during USSD process"
+            lifecycle_fix_shown=1
+        fi
+        
+        no_restart_logs=$(adb logcat -d | grep "Not restarting camera.*isUSSDProcessActive: true" | wc -l)
+        if [ "$no_restart_logs" -gt 0 ]; then
+            echo "✅ Camera analyzer correctly not restarting during USSD process"
+        fi
     fi
     
     sleep 1

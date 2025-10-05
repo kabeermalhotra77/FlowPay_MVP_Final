@@ -90,6 +90,7 @@ class MainActivityHelper(
         fun unregisterBroadcastReceiver(receiver: BroadcastReceiver)
         fun showCallDurationIssueDialog()
         fun showCallSuccessDialog()
+        fun showCallTimeoutDialog()
     }
     
     
@@ -398,11 +399,28 @@ class MainActivityHelper(
                 uiCallback.showCallDurationIssueDialog()
             },
             onCallSuccessful = {
-                Log.d("MainActivityHelper", "✅ Call completed successfully after 25 seconds - showing success dialog")
-                uiCallback.showCallSuccessDialog()
+                Log.d("MainActivityHelper", "✅ Call completed successfully after 25 seconds - NO DIALOG (user will wait for SMS)")
+                // SUCCESS DIALOG REMOVED - User will wait for SMS confirmation instead
+            },
+            onCallTimeout = {
+                Log.w("MainActivityHelper", "⏰ Call exceeded 40 seconds - timeout triggered")
+                Log.d("MainActivityHelper", "Hiding overlay and terminating call...")
+                
+                // Hide the overlay
+                callManager?.hideCallOverlay()
+                
+                // Terminate the call
+                val callTerminated = callManager?.terminateCall() ?: false
+                Log.d("MainActivityHelper", "Call termination result: $callTerminated")
+                
+                // Show timeout dialog
+                uiCallback.showCallTimeoutDialog()
+                
+                // Stop monitoring
+                callDurationMonitor?.stopMonitoring()
             }
         )
-        Log.d("MainActivityHelper", "✅ Call monitoring started - 25 second timer active")
+        Log.d("MainActivityHelper", "✅ Call monitoring started - 25 second timer and 40 second timeout active")
         
         // Use CallManager to initiate call
         val success = callManager?.initiateUPI123Call(phoneNumber, amount) ?: false

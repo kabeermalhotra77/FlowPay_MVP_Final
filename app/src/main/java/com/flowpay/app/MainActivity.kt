@@ -158,6 +158,8 @@ class MainActivity : ComponentActivity() {
         @Volatile
         var dismissCallSuccessDialogCallback: (() -> Unit)? = null
         @Volatile
+        var showCallTimeoutDialogCallback: (() -> Unit)? = null
+        @Volatile
         var resetQRScanningStateCallback: (() -> Unit)? = null
     }
 
@@ -234,14 +236,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // IMMEDIATE theme transition from splash to main theme
+        // Set theme and black background for main activity
         setTheme(R.style.Theme_FlowPay)
         Log.d(TAG, "Theme set to Theme_FlowPay")
         
-        // IMMEDIATE black setup - set before ANYTHING else
+        // Set black background
         window.statusBarColor = android.graphics.Color.BLACK
         window.navigationBarColor = android.graphics.Color.BLACK
-        Log.d(TAG, "Initial status bar color set to: ${window.statusBarColor}")
+        Log.d(TAG, "Status bar color set to: ${window.statusBarColor}")
         window.setBackgroundDrawableResource(android.R.color.black)
         window.decorView.setBackgroundColor(android.graphics.Color.BLACK)
         
@@ -374,6 +376,13 @@ class MainActivity : ComponentActivity() {
                 runOnUiThread {
                     Log.d("MainActivity", "✅ Requesting call success dialog to be shown")
                     showCallSuccessDialogCallback?.invoke()
+                }
+            }
+            
+            override fun showCallTimeoutDialog() {
+                runOnUiThread {
+                    Log.d("MainActivity", "⏰ Requesting call timeout dialog to be shown")
+                    showCallTimeoutDialogCallback?.invoke()
                 }
             }
         })
@@ -858,6 +867,7 @@ fun MainScreen(
     var isScanning by remember { mutableStateOf(false) }
     var showCallDurationDialog by remember { mutableStateOf(false) }
     var showCallSuccessDialog by remember { mutableStateOf(false) }
+    var showCallTimeoutDialog by remember { mutableStateOf(false) }
     var selectedPayment by remember { mutableStateOf<PaymentDetails?>(null) }
     
     
@@ -878,6 +888,14 @@ fun MainScreen(
         MainActivity.dismissCallSuccessDialogCallback = {
             showCallSuccessDialog = false
             Log.d("MainActivity", "❌ Call success dialog state set to false")
+        }
+    }
+    
+    // Set up callback for call timeout dialog
+    LaunchedEffect(Unit) {
+        MainActivity.showCallTimeoutDialogCallback = {
+            showCallTimeoutDialog = true
+            Log.d("MainActivity", "⏰ Call timeout dialog state set to true")
         }
     }
     
@@ -1458,6 +1476,12 @@ fun MainScreen(
                 )
             }
 
+            if (showCallTimeoutDialog) {
+                CallTimeoutDialog(
+                    onDismiss = { showCallTimeoutDialog = false }
+                )
+            }
+
             // Payment Details Dialog
             selectedPayment?.let { payment ->
                 PaymentDetailsDetailDialog(
@@ -1542,205 +1566,6 @@ fun TransactionItem(
     }
 }
 
-/**
- * Show contact permission explanation dialog with main screen aesthetic
- */
-@Composable
-fun ContactPermissionDialog(
-    onDismiss: () -> Unit,
-    onGrantPermission: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-            .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = Color.Black.copy(alpha = 0.15f),
-                spotColor = Color.Black.copy(alpha = 0.15f)
-            ),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF7BA8F5), // Lighter, softer blue (top)
-                            Color(0xFF6A96EE)  // Lighter blue with slight depth (bottom)
-                        )
-                    ),
-                    shape = RoundedCornerShape(20.dp)
-                )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-            ) {
-                // Header with Icon
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Contact Icon
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                Color.White.copy(alpha = 0.22f),
-                                CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PermContactCalendar,
-                            contentDescription = "Contact Icon",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
-                    Column {
-                        Text(
-                            text = "Contact Permission Required",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            style = TextStyle(
-                                shadow = Shadow(
-                                    color = Color.Black.copy(alpha = 0.15f),
-                                    offset = Offset(0f, 2f),
-                                    blurRadius = 6f
-                                )
-                            )
-                        )
-                        Text(
-                            text = "FlowPay needs contact access for easy transfers",
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-                
-                // Content Card
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 20.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.15f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        Text(
-                            text = "This permission allows you to:",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-                        
-                        // Feature List
-                        listOf(
-                            "Browse your contacts",
-                            "Select recipients quickly", 
-                            "Avoid typing phone numbers"
-                        ).forEach { feature ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .background(
-                                            Color.White.copy(alpha = 0.8f),
-                                            CircleShape
-                                        )
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = feature,
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Text(
-                            text = "Your contact information is not stored or shared.",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 12.sp,
-                            fontStyle = FontStyle.Italic
-                        )
-                    }
-                }
-                
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Cancel Button
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White.copy(alpha = 0.22f)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "Cancel",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    
-                    // Grant Permission Button
-                    Button(
-                        onClick = onGrantPermission,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "Grant Permission",
-                            color = Color(0xFF7BA8F5),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun PayContactDialog(
     onDismiss: () -> Unit,
@@ -1757,7 +1582,6 @@ fun PayContactDialog(
     var amount by remember { mutableStateOf(savedFormState?.amount ?: "") }
     var selectedContactName by remember { mutableStateOf(savedFormState?.contactName) }
     var showContactPicker by remember { mutableStateOf(false) }
-    var showContactPermissionDialog by remember { mutableStateOf(false) }
     
     // Check if amount exceeds 4998 - only validate if it's a valid number
     val amountValue = amount.toIntOrNull() ?: 0
@@ -1853,8 +1677,8 @@ fun PayContactDialog(
                             if (permissionManager.hasContactPermission()) {
                                 showContactPicker = true
                             } else {
-                                // Show contact permission explanation dialog
-                                showContactPermissionDialog = true
+                                // Request contact permission directly (no custom dialog)
+                                permissionManager.requestContactPermission()
                             }
                         },
                         modifier = Modifier
@@ -1940,17 +1764,6 @@ fun PayContactDialog(
                 // Save form state
                 formStateManager.updatePhoneNumber(phoneNumber)
                 formStateManager.updateContactName(selectedContactName)
-            }
-        )
-    }
-    
-    // Show contact permission dialog
-    if (showContactPermissionDialog) {
-        ContactPermissionDialog(
-            onDismiss = { showContactPermissionDialog = false },
-            onGrantPermission = {
-                showContactPermissionDialog = false
-                permissionManager.requestContactPermission()
             }
         )
     }
@@ -2225,6 +2038,57 @@ fun CallSuccessDialog(
             ) {
                 Text(
                     text = "Got it",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun CallTimeoutDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1A1A),
+        title = { 
+            Text(
+                text = "Transaction Timeout",
+                color = Color(0xFFFF6B6B),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            ) 
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "The transaction request failed.",
+                    color = Color(0xFFCCCCCC),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "Please try again later.",
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = Color(0xFF4A9EFF)
+                )
+            ) {
+                Text(
+                    text = "OK",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )

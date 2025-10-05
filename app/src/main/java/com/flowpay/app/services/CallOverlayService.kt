@@ -177,6 +177,14 @@ class CallOverlayService : Service() {
     private var pendingAmount = ""
     private var upiServiceNumber = ""
     
+    // Overlay timeout management (40 seconds from when overlay appears)
+    private var overlayTimeoutHandler: Handler? = null
+    private var overlayTimeoutRunnable: Runnable? = null
+    private var overlayStartTime = 0L
+    private val OVERLAY_TIMEOUT_DURATION = 40000L // 40 seconds
+    private val ERROR_MESSAGE_DISPLAY_DURATION = 3000L // 3 seconds
+    private var hasTimeoutOccurred = false // Track if timeout already handled
+    
     // SMS detection handled by new system
     
     // Call state monitoring and dialog management
@@ -467,10 +475,10 @@ class CallOverlayService : Service() {
     }
     
     private fun launchSuccessScreen(data: TransactionData) {
-        Log.d(TAG, "Showing success dialog")
+        Log.d(TAG, "Transaction SMS received - NO DIALOG (user requested removal)")
         
-        // Use the dialog manager instead of launching activity
-        dialogManager?.showTransactionCompleted()
+        // SUCCESS DIALOG REMOVED - User will see SMS notification directly
+        // dialogManager?.showTransactionCompleted()
     }
     
     private fun showOverlayInternal(phoneNumber: String, amount: String) {
@@ -707,6 +715,10 @@ class CallOverlayService : Service() {
                 Log.d(TAG, "System overlay created and shown successfully")
                 Log.d(TAG, "isOverlayActive: $isOverlayActive, isOverlayShowing: $isOverlayShowing")
                 
+                // Start overlay timeout timer
+                overlayStartTime = System.currentTimeMillis()
+                startOverlayTimeoutTimer()
+                
                 // Smooth entrance animation with multiple stages
                 overlayView?.animate()
                     ?.alpha(1f)
@@ -814,6 +826,151 @@ class CallOverlayService : Service() {
     }
     
     /**
+     * Start overlay 40-second timeout timer
+     */
+    private fun startOverlayTimeoutTimer() {
+        Log.d(TAG, "Starting overlay 40-second timeout monitoring")
+        
+        overlayTimeoutHandler = Handler(Looper.getMainLooper())
+        overlayTimeoutRunnable = Runnable {
+            val elapsedTime = System.currentTimeMillis() - overlayStartTime
+            
+            if (elapsedTime >= OVERLAY_TIMEOUT_DURATION && isOverlayActive) {
+                Log.w(TAG, "⏰ Overlay has been active for 40 seconds - showing failure message")
+                handleOverlayTimeout()
+            }
+        }
+        
+        overlayTimeoutHandler?.postDelayed(overlayTimeoutRunnable!!, OVERLAY_TIMEOUT_DURATION)
+    }
+    
+    /**
+     * Handle overlay timeout (40 seconds reached)
+     */
+    private fun handleOverlayTimeout() {
+        Log.w(TAG, "=== OVERLAY TIMEOUT TRIGGERED ===")
+        
+        // Mark that timeout has occurred to prevent success dialog
+        hasTimeoutOccurred = true
+        
+        try {
+            // Update overlay UI to show error state
+            updateOverlayToErrorState()
+            
+            // Terminate the call
+            Log.d(TAG, "Terminating call due to timeout...")
+            callManager?.restoreCallVolume()
+            val terminated = callManager?.terminateCall() ?: false
+            Log.d(TAG, "Call termination result: $terminated")
+            
+            // Keep overlay visible for a few seconds with error message
+            Handler(Looper.getMainLooper()).postDelayed({
+                Log.d(TAG, "Dismissing overlay after error message display")
+                hideOverlayInternal()
+                
+                // Show timeout dialog
+                dialogManager?.showTransactionTimeout()
+                
+                // Stop service
+                Handler(Looper.getMainLooper()).postDelayed({
+                    stopSelf()
+                }, 500)
+                
+            }, ERROR_MESSAGE_DISPLAY_DURATION)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling overlay timeout: ${e.message}", e)
+            // Fallback: just hide overlay and show dialog
+            hideOverlayInternal()
+            dialogManager?.showTransactionTimeout()
+            stopSelf()
+        }
+    }
+    
+    /**
+     * Update overlay UI to show error state
+     */
+    private fun updateOverlayToErrorState() {
+        Log.d(TAG, "Updating overlay to show error state")
+        
+        try {
+            overlayView?.let { view ->
+                // Stop any ongoing animations
+                progressRunnable?.let {
+                    Handler(Looper.getMainLooper()).removeCallbacks(it)
+                }
+                
+                // Update status text to show error
+                val statusText = view.findViewById<TextView>(R.id.statusText)
+                statusText?.apply {
+                    text = "Transaction Failed"
+                    setTextColor(Color.parseColor("#FF6B6B")) // Red color
+                    textSize = 18f
+                    animate()
+                        .scaleX(1.1f)
+                        .scaleY(1.1f)
+                        .setDuration(200)
+                        .withEndAction {
+                            animate()
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(200)
+                                .start()
+                        }
+                        .start()
+                }
+                
+                // Update step text
+                val stepText = view.findViewById<TextView>(R.id.stepText)
+                stepText?.apply {
+                    text = "Please try again later"
+                    setTextColor(Color.parseColor("#CCCCCC"))
+                }
+                
+                // Stop progress bar animation
+                val progressBar = view.findViewById<android.widget.ProgressBar>(R.id.progressBar)
+                progressBar?.apply {
+                    clearAnimation()
+                }
+                
+                // Update progress percent
+                val progressPercent = view.findViewById<TextView>(R.id.progressPercent)
+                progressPercent?.apply {
+                    text = "Failed"
+                    setTextColor(Color.parseColor("#FF6B6B"))
+                }
+                
+                // Add visual feedback - shake animation
+                view.animate()
+                    .translationX(-10f)
+                    .setDuration(50)
+                    .withEndAction {
+                        view.animate()
+                            .translationX(10f)
+                            .setDuration(50)
+                            .withEndAction {
+                                view.animate()
+                                    .translationX(-10f)
+                                    .setDuration(50)
+                                    .withEndAction {
+                                        view.animate()
+                                            .translationX(0f)
+                                            .setDuration(50)
+                                            .start()
+                                    }
+                                    .start()
+                            }
+                            .start()
+                    }
+                    .start()
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating overlay to error state: ${e.message}")
+        }
+    }
+    
+    /**
      * Start monitoring call state changes
      */
     private fun startCallMonitoring() {
@@ -843,6 +1000,12 @@ class CallOverlayService : Service() {
     private fun handleCallEnded(reason: CallStateMonitor.CallEndReason) {
         Log.d(TAG, "Call ended with reason: $reason")
         
+        // Cancel overlay timeout timer since call ended naturally
+        overlayTimeoutRunnable?.let {
+            overlayTimeoutHandler?.removeCallbacks(it)
+            Log.d(TAG, "Overlay timeout timer cancelled - call ended naturally")
+        }
+        
         // Restore call volume to original level
         callManager?.restoreCallVolume()
         
@@ -856,8 +1019,8 @@ class CallOverlayService : Service() {
                 dialogManager?.showTransactionCancelled()
             }
             CallStateMonitor.CallEndReason.CALL_COMPLETED -> {
-                Log.d(TAG, "Transaction completed successfully")
-                dialogManager?.showTransactionCompleted()
+                Log.d(TAG, "Transaction completed successfully - NO DIALOG (user requested removal)")
+                // SUCCESS DIALOG REMOVED - User will wait for SMS confirmation
             }
             CallStateMonitor.CallEndReason.CALL_FAILED -> {
                 Log.d(TAG, "Transaction failed")
@@ -1043,6 +1206,14 @@ class CallOverlayService : Service() {
                 Handler(Looper.getMainLooper()).removeCallbacks(it)
             }
             
+            // Cancel overlay timeout timer
+            overlayTimeoutRunnable?.let {
+                overlayTimeoutHandler?.removeCallbacks(it)
+                Log.d(TAG, "Overlay timeout timer cancelled")
+            }
+            overlayTimeoutHandler = null
+            overlayTimeoutRunnable = null
+            
             // Remove the overlay view from window manager
             windowManager?.removeView(overlayView)
             overlayView = null
@@ -1063,6 +1234,13 @@ class CallOverlayService : Service() {
             timeoutRunnable?.let {
                 timeoutHandler?.removeCallbacks(it)
             }
+            
+            // Cancel overlay timeout timer
+            overlayTimeoutRunnable?.let {
+                overlayTimeoutHandler?.removeCallbacks(it)
+            }
+            overlayTimeoutHandler = null
+            overlayTimeoutRunnable = null
             
             // Stop call state monitoring
             callStateMonitor?.stopMonitoring()

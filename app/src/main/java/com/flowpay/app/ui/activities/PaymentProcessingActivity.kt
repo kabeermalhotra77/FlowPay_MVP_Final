@@ -139,15 +139,15 @@ class PaymentProcessingActivity : AppCompatActivity() {
     }
     
     private fun navigateToSuccess(transactionData: TransactionData?) {
-        Log.d(TAG, "Showing success dialog")
+        Log.d(TAG, "Transaction successful - NO DIALOG (user requested removal)")
         
         try {
-            // Use TransactionDialogManager to show success dialog
-            val dialogManager = com.flowpay.app.managers.TransactionDialogManager(this)
-            dialogManager.showTransactionCompleted()
+            // SUCCESS DIALOG REMOVED - User will see SMS notification directly
+            // val dialogManager = com.flowpay.app.managers.TransactionDialogManager(this)
+            // dialogManager.showTransactionCompleted()
             finish()
         } catch (e: Exception) {
-            Log.e(TAG, "Error showing success dialog", e)
+            Log.e(TAG, "Error in success navigation", e)
             finish()
         }
     }

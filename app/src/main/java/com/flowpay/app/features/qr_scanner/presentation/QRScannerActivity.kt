@@ -199,38 +199,8 @@ class QRScannerActivity : ComponentActivity() {
             findViewById<View>(android.R.id.content).setBackgroundColor(ContextCompat.getColor(this, android.R.color.black))
         }
         
-        // Show permission explanation dialog
-        showCameraPermissionExplanationDialog()
-    }
-    
-    /**
-     * Show camera permission explanation dialog with main screen aesthetic
-     */
-    private fun showCameraPermissionExplanationDialog() {
-        val dialog = AlertDialog.Builder(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
-            .create()
-        
-        // Create custom layout
-        val inflater = layoutInflater
-        val dialogView = inflater.inflate(R.layout.dialog_camera_permission, null)
-        
-        // Set up the dialog
-        dialog.setView(dialogView)
-        dialog.setCancelable(false)
-        
-        // Set up button click listeners
-        dialogView.findViewById<android.widget.Button>(R.id.btn_grant_camera_permission)?.setOnClickListener {
-            dialog.dismiss()
-            requestCameraPermission()
-        }
-        
-        dialogView.findViewById<android.widget.Button>(R.id.btn_cancel_camera)?.setOnClickListener {
-            dialog.dismiss()
-            setResult(RESULT_CANCELLED)
-            finish()
-        }
-        
-        dialog.show()
+        // Request camera permission directly (no custom dialog)
+        requestCameraPermission()
     }
     
     /**
@@ -872,8 +842,9 @@ class QRScannerActivity : ComponentActivity() {
         try {
             Log.d("QRScanner", "Terminating USSD process...")
             
-            // Stop USSD process
+            // Stop USSD process and reset processing flags
             isUSSDProcessActive = false
+            isProcessingQRCode = false
             
             // Cancel all timeouts and handlers
             messageHandler?.removeCallbacksAndMessages(null)
@@ -1065,8 +1036,14 @@ class QRScannerActivity : ComponentActivity() {
         
         try {
             imageAnalyzer?.clearAnalyzer()
-            // FIX: Reset processing flag when paused
-            isProcessingQRCode = false
+            // FIX: Don't reset processing flag during USSD process to prevent re-dialing
+            // Only reset if USSD process is not active
+            if (!isUSSDProcessActive) {
+                Log.d("QRScanner", "No active USSD process - resetting processing flag")
+                isProcessingQRCode = false
+            } else {
+                Log.d("QRScanner", "USSD process active - keeping processing flag to prevent re-dial")
+            }
         } catch (e: Exception) {
             Log.e("QRScanner", "Error stopping camera on pause: ${e.message}", e)
         }
@@ -1099,14 +1076,18 @@ class QRScannerActivity : ComponentActivity() {
     
     override fun onResume() {
         super.onResume()
-        Log.d("QRScanner", "Activity resumed - restarting camera")
+        Log.d("QRScanner", "Activity resumed - checking if camera should restart")
         try {
-            if (imageAnalyzer != null && !isProcessingQRCode) {
-                // FIX: Clear analyzer before setting up new one to prevent multiple analyzers
+            // FIX: Only restart analyzer if not processing QR code and USSD process is not active
+            if (imageAnalyzer != null && !isProcessingQRCode && !isUSSDProcessActive) {
+                Log.d("QRScanner", "Restarting camera analyzer")
+                // Clear analyzer before setting up new one to prevent multiple analyzers
                 imageAnalyzer?.clearAnalyzer()
                 imageAnalyzer?.setAnalyzer(cameraExecutor, QRCodeAnalyzer { qrCode ->
                     processQRCode(qrCode)
                 })
+            } else {
+                Log.d("QRScanner", "Not restarting camera - isProcessingQRCode: $isProcessingQRCode, isUSSDProcessActive: $isUSSDProcessActive")
             }
         } catch (e: Exception) {
             Log.e("QRScanner", "Error restarting camera on resume: ${e.message}", e)

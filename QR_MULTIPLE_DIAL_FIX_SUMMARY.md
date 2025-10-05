@@ -4,13 +4,15 @@
 When scanning a QR code, the USSD code `*99*1*3#` was being dialed multiple times instead of just once.
 
 ## Root Cause Analysis
-The issue was caused by multiple QR code analyzers being set up in the `QRScannerActivity`:
+The issue was caused by the activity lifecycle when the USSD dialer is launched:
 
-1. **Initial setup** in `startCamera()` method
-2. **Resume scanning** in `resumeScanning()` method after errors
-3. **Activity resume** in `onResume()` method
+1. **QR code scanned** → `processQRCode()` sets `isProcessingQRCode = true`
+2. **USSD dialer starts** → QRScannerActivity goes to background → `onPause()` is called
+3. **Previous implementation** reset `isProcessingQRCode = false` in `onPause()` unconditionally
+4. **User finishes USSD** → QRScannerActivity resumes → `onResume()` restarts camera analyzer
+5. **QR code still in view** → Gets scanned again → USSD dials multiple times!
 
-Each time a new analyzer was set up, it created a new `QRCodeAnalyzer` instance that would call `processQRCode()`, which in turn called `dialUSSD()`. This resulted in multiple USSD dials for a single QR code scan.
+The critical issue was that the processing flag was being reset during the activity pause/resume cycle that happens naturally when the USSD dialer activity is launched.
 
 ## Solution Implemented
 
@@ -42,20 +44,50 @@ private fun processQRCode(qrCode: String) {
 }
 ```
 
-### 3. Fixed Analyzer Setup
-- **onResume()**: Clear analyzer before setting up new one
-- **resumeScanning()**: Reset processing flag and clear analyzer before setting up new one
-- **onPause()**: Reset processing flag when paused
-- **onDestroy()**: Reset processing flag when destroyed
+### 3. Fixed Lifecycle Management
+```kotlin
+override fun onPause() {
+    // FIX: Don't reset processing flag during USSD process to prevent re-dialing
+    // Only reset if USSD process is not active
+    if (!isUSSDProcessActive) {
+        Log.d("QRScanner", "No active USSD process - resetting processing flag")
+        isProcessingQRCode = false
+    } else {
+        Log.d("QRScanner", "USSD process active - keeping processing flag to prevent re-dial")
+    }
+}
 
-### 4. Key Changes Made
+override fun onResume() {
+    // FIX: Only restart analyzer if not processing QR code and USSD process is not active
+    if (imageAnalyzer != null && !isProcessingQRCode && !isUSSDProcessActive) {
+        Log.d("QRScanner", "Restarting camera analyzer")
+        imageAnalyzer?.clearAnalyzer()
+        imageAnalyzer?.setAnalyzer(cameraExecutor, QRCodeAnalyzer { qrCode ->
+            processQRCode(qrCode)
+        })
+    }
+}
+```
+
+### 4. Fixed Termination Cleanup
+```kotlin
+private fun terminateUSSDProcess() {
+    // Stop USSD process and reset processing flags
+    isUSSDProcessActive = false
+    isProcessingQRCode = false
+    // ... rest of cleanup
+}
+```
+
+### 5. Key Changes Made
 
 #### QRScannerActivity.kt
 - Added `isProcessingQRCode` flag to prevent duplicate processing
 - Enhanced `processQRCode()` to check and set processing flag
-- Fixed `onResume()` to clear analyzer before setting up new one
-- Fixed `resumeScanning()` to reset flag and clear analyzer
-- Added flag reset in `onPause()` and `onDestroy()`
+- **Critical Fix**: Modified `onPause()` to only reset `isProcessingQRCode` when `isUSSDProcessActive` is false
+- **Critical Fix**: Modified `onResume()` to check both `isProcessingQRCode` AND `isUSSDProcessActive` before restarting analyzer
+- Fixed `terminateUSSDProcess()` to reset both flags for proper cleanup
+- Added comprehensive logging for debugging
 
 ## Testing
 Created test script `test_qr_multiple_dial_fix.sh` to verify the fix:

@@ -307,6 +307,48 @@ class TransactionDialogManager(private val context: Context) {
     }
     
     /**
+     * Show dialog when transaction times out (exceeds 40 seconds)
+     */
+    fun showTransactionTimeout() {
+        Log.d(TAG, "Showing transaction timeout dialog")
+        
+        try {
+            // Bring app to foreground first
+            bringAppToForeground()
+            
+            // Small delay to ensure app is in foreground before showing dialog
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                val dialog = AlertDialog.Builder(context)
+                    .setTitle("Transaction Timeout")
+                    .setMessage("The transaction request failed. Please try again later.")
+                    .setPositiveButton("OK") { dialog, _ ->
+                        dialog.dismiss()
+                        Log.d(TAG, "Transaction timeout dialog dismissed")
+                    }
+                    .setCancelable(false)
+                    .create()
+                
+                // Set window flags to ensure dialog appears on top
+                dialog.window?.setFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                )
+                
+                dialog.show()
+            }, 200)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show transaction timeout dialog: ${e.message}")
+            // Fallback to toast if dialog fails
+            Toast.makeText(context, "Transaction request failed. Please try again later.", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    /**
      * Show a custom dialog with specific title and message
      */
     fun showCustomDialog(title: String, message: String, positiveButton: String = "OK") {

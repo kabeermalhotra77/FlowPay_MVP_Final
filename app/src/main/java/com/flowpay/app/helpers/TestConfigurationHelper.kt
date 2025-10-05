@@ -33,6 +33,7 @@ class TestConfigurationHelper(
     
     // Test state variables
     private var currentTestingType: CallType? = null
+    @Volatile
     private var ussdTesting = false
     private var showUssdDialog = false
     private var ussdTestCompleted = false
@@ -100,15 +101,29 @@ class TestConfigurationHelper(
     }
 
     /**
-     * Initiate a test call
+     * Initiate a test call - SIMPLIFIED to prevent duplicate dials
      */
     fun initiateCall(callType: CallType) {
-        // Check permissions before initiating call
+        Log.d(TAG, "=== initiateCall START - callType: $callType, ussdTesting: $ussdTesting ===")
+        
+        // CRITICAL: For USSD, set testing flag IMMEDIATELY before anything else
+        if (callType == CallType.USSD) {
+            if (ussdTesting) {
+                Log.w(TAG, "USSD test already in progress - BLOCKING duplicate call")
+                return
+            }
+            // Set flag FIRST to block any subsequent calls
+            ussdTesting = true
+            Log.d(TAG, "ussdTesting flag set to TRUE immediately")
+        }
+        
+        // Check permissions
         if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != 
             PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG, "CALL_PHONE permission not granted")
             uiCallback.showToast("Phone call permission is required to test USSD")
             permissionManager.requestRequiredPermissions()
+            if (callType == CallType.USSD) ussdTesting = false
             return
         }
         
@@ -122,14 +137,12 @@ class TestConfigurationHelper(
         // Update UI state
         when (callType) {
             CallType.USSD -> {
-                Log.d(TAG, "Initiating USSD setup for *99# - will show dialog after 25 seconds")
-                ussdTesting = true
+                Log.d(TAG, "Setting up USSD UI state")
                 showUssdDialog = true
                 ussdProgressMessage = "Dialing *99#..."
                 uiCallback.updateUssdTesting(true)
                 uiCallback.updateUssdDialog(true)
                 uiCallback.updateUssdProgressMessage(ussdProgressMessage)
-                Log.d(TAG, "USSD state set - ussdTesting: $ussdTesting, showUssdDialog: $showUssdDialog")
             }
             CallType.VOICE -> {
                 voiceTesting = true
@@ -158,6 +171,7 @@ class TestConfigurationHelper(
             startUssdTimeout() // Start 25-second timeout
         }
         
+        Log.d(TAG, "About to call callManager.initiateCall for $callType")
         callManager.initiateCall(
             context = context,
             phoneNumber = number,
@@ -197,6 +211,8 @@ class TestConfigurationHelper(
                 currentTestingType = null
             }
         )
+        
+        Log.d(TAG, "=== initiateCall END - Call initiated successfully ===")
     }
 
     // Simplified dialog logic - using simple 25-second timeout for USSD and immediate dialog for UPI123
@@ -290,11 +306,22 @@ class TestConfigurationHelper(
             uiCallback.updateUpi123Dialog(true)
             
             // Initiate UPI123 call - simple flow
+            Log.d(TAG, "=== INITIATING UPI123 CALL ===")
+            Log.d(TAG, "Phone number: 08045163666")
+            Log.d(TAG, "Call type: UPI123")
+            Log.d(TAG, "upi123Testing: $upi123Testing")
+            
             callManager.initiateCall(
                 context = context,
                 phoneNumber = "08045163666", // Use the specific number for UPI123
                 callType = CallType.UPI123,
                 onCallEnded = { type ->
+                    Log.d(TAG, "=== CALL ENDED CALLBACK TRIGGERED ===")
+                    Log.d(TAG, "Call type received: $type")
+                    Log.d(TAG, "Expected type: UPI123")
+                    Log.d(TAG, "upi123Testing: $upi123Testing")
+                    Log.d(TAG, "upi123TestCompleted: $upi123TestCompleted")
+                    
                     if (type == CallType.UPI123 && upi123Testing) {
                         Log.d(TAG, "UPI123 call ended - showing configuration dialog after 2 second delay")
                         
@@ -306,6 +333,7 @@ class TestConfigurationHelper(
                         val handler = android.os.Handler(android.os.Looper.getMainLooper())
                         handler.postDelayed({
                             if (!upi123TestCompleted) {
+                                Log.d(TAG, "Showing UPI123 completion dialog")
                                 showUpi123Dialog = false
                                 showUpi123ConfigurationOptions = false
                                 uiCallback.updateUpi123Dialog(false)
@@ -313,8 +341,12 @@ class TestConfigurationHelper(
                                 // Show AlertDialog instead of Compose dialog
                                 uiCallback.showUpi123CompletionDialog()
                                 Log.d(TAG, "UPI123 AlertDialog shown after 2 second delay")
+                            } else {
+                                Log.d(TAG, "UPI123 test already completed, not showing dialog")
                             }
                         }, 2000) // 2 second delay
+                    } else {
+                        Log.w(TAG, "Call ended but conditions not met - type: $type, upi123Testing: $upi123Testing")
                     }
                 }
             )

@@ -14,11 +14,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
@@ -144,54 +150,73 @@ fun SetupScreen(setupHelper: SetupHelper) {
 @Composable
 fun HeaderCard() {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = Color.Black.copy(alpha = 0.15f),
+                spotColor = Color.Black.copy(alpha = 0.15f)
+            ),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8E8E8))
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(40.dp, 30.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Header Icon
-            Box(
-                modifier = Modifier
-                    .size(50.dp, 40.dp)
-                    .background(
-                        color = Color(0xFF2A2A2A),
-                        shape = RoundedCornerShape(8.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF7BA8F5), // Lighter, softer blue (top) - matches main screen
+                            Color(0xFF6A96EE)  // Lighter blue with slight depth (bottom)
+                        )
                     ),
-                contentAlignment = Alignment.Center
+                    shape = RoundedCornerShape(20.dp)
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(40.dp, 30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Header Icon - Fixed design with proper icon
                 Box(
                     modifier = Modifier
-                        .size(35.dp, 3.dp)
+                        .size(50.dp, 40.dp)
                         .background(
-                            color = Color(0xFFE8E8E8),
-                            shape = RoundedCornerShape(2.dp)
-                        )
+                            color = Color.White.copy(alpha = 0.22f),
+                            shape = RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Setup",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(25.dp))
+                
+                Text(
+                    text = stringResource(R.string.setup_flowpay),
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    letterSpacing = (-0.5).sp
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Text(
+                    text = stringResource(R.string.configure_upi_payments),
+                    fontSize = 18.sp,
+                    color = Color.White.copy(alpha = 0.95f),
+                    fontWeight = FontWeight.Normal
                 )
             }
-            
-            Spacer(modifier = Modifier.height(25.dp))
-            
-            Text(
-                text = stringResource(R.string.setup_flowpay),
-                fontSize = 36.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF000000),
-                letterSpacing = (-0.5).sp
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Text(
-                text = stringResource(R.string.configure_upi_payments),
-                fontSize = 18.sp,
-                color = Color(0xFF4A4A4A),
-                fontWeight = FontWeight.Normal
-            )
         }
     }
 }
@@ -209,7 +234,7 @@ fun MobileNumberSection(
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
-                imageVector = PhoneIcon,
+                imageVector = Icons.Default.Phone,
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(24.dp)
@@ -252,13 +277,13 @@ fun MobileNumberSection(
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFF555555),
+                focusedBorderColor = Color(0xFF7BA8F5), // Blue accent matching main screen
                 unfocusedBorderColor = Color(0xFF333333),
-                focusedContainerColor = Color(0xFF222222),
-                unfocusedContainerColor = Color(0xFF1A1A1A),
+                focusedContainerColor = Color(0xFF0A0A0A), // Very dark background
+                unfocusedContainerColor = Color(0xFF0A0A0A),
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
-                cursorColor = Color.White
+                cursorColor = Color(0xFF7BA8F5) // Blue cursor matching accent
             ),
             shape = RoundedCornerShape(12.dp),
             textStyle = TextStyle(fontSize = 17.sp)
@@ -280,7 +305,7 @@ fun BankSelectionSection(
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
-                imageVector = CardIcon,
+                imageVector = Icons.Default.AccountBalance,
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(24.dp)
@@ -329,10 +354,10 @@ fun BankSelectionSection(
                     .fillMaxWidth()
                     .menuAnchor(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF555555),
+                    focusedBorderColor = Color(0xFF7BA8F5), // Blue accent matching main screen
                     unfocusedBorderColor = Color(0xFF333333),
-                    focusedContainerColor = Color(0xFF222222),
-                    unfocusedContainerColor = Color(0xFF1A1A1A),
+                    focusedContainerColor = Color(0xFF0A0A0A), // Very dark background
+                    unfocusedContainerColor = Color(0xFF0A0A0A),
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
                     focusedTrailingIconColor = Color.White,
@@ -345,7 +370,9 @@ fun BankSelectionSection(
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.background(Color(0xFF2A2A2A))
+                modifier = Modifier
+                    .background(Color(0xFF0A0A0A))
+                    .clip(RoundedCornerShape(12.dp))
             ) {
                 banks.forEach { (value, label) ->
                     DropdownMenuItem(
@@ -360,7 +387,7 @@ fun BankSelectionSection(
                             onBankSelected(value)
                             expanded = false
                         },
-                        modifier = Modifier.background(Color(0xFF2A2A2A))
+                        modifier = Modifier.background(Color(0xFF0A0A0A))
                     )
                 }
             }
@@ -387,7 +414,7 @@ fun SimCardSelectionSection(
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
-                imageVector = SimCardIcon,
+                imageVector = Icons.Default.SimCard,
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(24.dp)
@@ -437,10 +464,10 @@ fun SimCardSelectionSection(
                     .fillMaxWidth()
                     .menuAnchor(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF555555),
+                    focusedBorderColor = Color(0xFF7BA8F5), // Blue accent matching main screen
                     unfocusedBorderColor = Color(0xFF333333),
-                    focusedContainerColor = Color(0xFF222222),
-                    unfocusedContainerColor = Color(0xFF1A1A1A),
+                    focusedContainerColor = Color(0xFF0A0A0A), // Very dark background
+                    unfocusedContainerColor = Color(0xFF0A0A0A),
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
                     focusedTrailingIconColor = Color.White,
@@ -453,7 +480,9 @@ fun SimCardSelectionSection(
             ExposedDropdownMenu(
                 expanded = primaryExpanded,
                 onDismissRequest = { primaryExpanded = false },
-                modifier = Modifier.background(Color(0xFF2A2A2A))
+                modifier = Modifier
+                    .background(Color(0xFF0A0A0A))
+                    .clip(RoundedCornerShape(12.dp))
             ) {
                 simCarriers.forEach { (value, label) ->
                     DropdownMenuItem(
@@ -468,7 +497,7 @@ fun SimCardSelectionSection(
                             onPrimarySimSelected(value)
                             primaryExpanded = false
                         },
-                        modifier = Modifier.background(Color(0xFF2A2A2A))
+                        modifier = Modifier.background(Color(0xFF0A0A0A))
                     )
                 }
             }
@@ -488,11 +517,11 @@ fun SimCardSelectionSection(
                     .size(20.dp)
                     .border(
                         width = 2.dp,
-                        color = if (isDualSimEnabled) Color(0xFF4A90E2) else Color(0xFF666666),
+                        color = if (isDualSimEnabled) Color(0xFF7BA8F5) else Color(0xFF666666),
                         shape = CircleShape
                     )
                     .background(
-                        color = if (isDualSimEnabled) Color(0xFF4A90E2) else Color.Transparent,
+                        color = if (isDualSimEnabled) Color(0xFF7BA8F5) else Color.Transparent,
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -532,7 +561,7 @@ fun SimCardSelectionSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
-                    imageVector = SimCardIcon,
+                    imageVector = Icons.Default.SimCard,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
@@ -592,7 +621,9 @@ fun SimCardSelectionSection(
                 ExposedDropdownMenu(
                     expanded = secondaryExpanded,
                     onDismissRequest = { secondaryExpanded = false },
-                    modifier = Modifier.background(Color(0xFF2A2A2A))
+                    modifier = Modifier
+                        .background(Color(0xFF0A0A0A))
+                        .clip(RoundedCornerShape(12.dp))
                 ) {
                     secondarySimOptions.forEach { (value, label) ->
                         DropdownMenuItem(
@@ -607,7 +638,7 @@ fun SimCardSelectionSection(
                                 onSecondarySimSelected(value)
                                 secondaryExpanded = false
                             },
-                            modifier = Modifier.background(Color(0xFF2A2A2A))
+                            modifier = Modifier.background(Color(0xFF0A0A0A))
                         )
                     }
                 }
@@ -620,150 +651,42 @@ fun SimCardSelectionSection(
 fun CompleteSetupButton(
     onCompleteSetup: () -> Unit
 ) {
-    Button(
-        onClick = onCompleteSetup,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(66.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFFFFFFFF)
-        ),
-        shape = RoundedCornerShape(25.dp)
+            .height(66.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(25.dp),
+                ambientColor = Color.Black.copy(alpha = 0.15f),
+                spotColor = Color.Black.copy(alpha = 0.15f)
+            )
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF7BA8F5), // Lighter, softer blue (top) - matches header
+                        Color(0xFF6A96EE)  // Lighter blue with slight depth (bottom)
+                    )
+                ),
+                shape = RoundedCornerShape(25.dp)
+            )
+            .clickable { onCompleteSetup() },
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = stringResource(R.string.complete_setup),
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF000000),
+            color = Color.White,
             letterSpacing = (-0.3).sp
         )
     }
 }
 
 
-// Custom SVG-style Icons
-val PhoneIcon: ImageVector
-    get() {
-        return ImageVector.Builder(
-            name = "phone",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            // Phone body (rectangular)
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(5f, 2f)
-                lineTo(19f, 2f)
-                arcTo(2f, 2f, 0f, true, true, 21f, 4f)
-                lineTo(21f, 20f)
-                arcTo(2f, 2f, 0f, true, true, 19f, 22f)
-                lineTo(5f, 22f)
-                arcTo(2f, 2f, 0f, true, true, 3f, 20f)
-                lineTo(3f, 4f)
-                arcTo(2f, 2f, 0f, true, true, 5f, 2f)
-                close()
-            }
-            // Home button indicator
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(12f, 18f)
-                lineTo(12f, 18f)
-            }
-        }.build()
-    }
-
-val CardIcon: ImageVector
-    get() {
-        return ImageVector.Builder(
-            name = "card",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            // Credit card outline
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(1f, 4f)
-                lineTo(23f, 4f)
-                arcTo(2f, 2f, 0f, true, true, 23f, 6f)
-                lineTo(23f, 18f)
-                arcTo(2f, 2f, 0f, true, true, 21f, 20f)
-                lineTo(3f, 20f)
-                arcTo(2f, 2f, 0f, true, true, 1f, 18f)
-                lineTo(1f, 6f)
-                arcTo(2f, 2f, 0f, true, true, 1f, 4f)
-                close()
-            }
-            // Card stripe line
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(1f, 10f)
-                lineTo(23f, 10f)
-            }
-        }.build()
-    }
-
-val SimCardIcon: ImageVector
-    get() {
-        return ImageVector.Builder(
-            name = "sim",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            // SIM card outline with cut corner
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(19.5f, 3f)
-                lineTo(8.5f, 3f)
-                lineTo(3f, 8.5f)
-                lineTo(3f, 21f)
-                lineTo(21f, 21f)
-                lineTo(21f, 3f)
-                close()
-            }
-            // Cut corner detail
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(3f, 8.5f)
-                lineTo(8.5f, 8.5f)
-                lineTo(8.5f, 3f)
-            }
-        }.build()
-    }
+// Using Material Design icons instead of custom SVG icons
+// PhoneIcon -> Icons.Default.Phone
+// CardIcon -> Icons.Default.AccountBalance  
+// SimCardIcon -> Icons.Default.SimCard
 
 // Preview removed due to complex helper dependency

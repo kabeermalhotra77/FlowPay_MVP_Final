@@ -143,8 +143,12 @@ class CallManager(private val context: Context) {
         
         // Create and register phone state listener for non-USSD calls
         synchronized(listenerLock) {
+            Log.d(TAG, "=== REGISTERING PHONE STATE LISTENER ===")
+            Log.d(TAG, "Call type: $callType")
+            Log.d(TAG, "Phone number: $phoneNumber")
             phoneStateListener = createPhoneStateListener(onCallEnded)
             telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+            Log.d(TAG, "Phone state listener registered for $callType")
         }
         
         // Initiate the call
@@ -166,16 +170,40 @@ class CallManager(private val context: Context) {
         }
     }
     
+    // Track last USSD dial time to prevent rapid duplicates
+    @Volatile
+    private var lastUssdDialTime = 0L
+    private val USSD_DIAL_COOLDOWN_MS = 2000L // 2 seconds cooldown
+    
     /**
      * Handle USSD calls using ACTION_CALL (simplified)
      */
     private fun handleUSSDCall(ussdCode: String, onUssdComplete: (() -> Unit)?) {
-        // Set up USSD callback
-        setUssdSessionCompleteCallback(onUssdComplete)
-        _isCallInProgress.value = true
-        currentCallType = CallType.USSD
+        // Prevent duplicate USSD calls with multiple layers of protection
+        synchronized(callStateLock) {
+            // Check if call already in progress
+            if (_isCallInProgress.value && currentCallType == CallType.USSD) {
+                Log.w(TAG, "USSD call already in progress, ignoring duplicate request")
+                return
+            }
+            
+            // Check cooldown period to prevent rapid duplicate dials
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastUssdDialTime < USSD_DIAL_COOLDOWN_MS) {
+                Log.w(TAG, "USSD dial requested too soon after previous dial (${currentTime - lastUssdDialTime}ms), ignoring to prevent duplicate")
+                return
+            }
+            
+            // Update last dial time immediately
+            lastUssdDialTime = currentTime
+            
+            // Set up USSD callback
+            setUssdSessionCompleteCallback(onUssdComplete)
+            _isCallInProgress.value = true
+            currentCallType = CallType.USSD
+        }
         
-        Log.d(TAG, "Starting USSD call: $ussdCode")
+        Log.d(TAG, "Starting USSD call: $ussdCode (protection layers passed)")
         
         
         // Create and register phone state listener for USSD calls
@@ -232,16 +260,24 @@ class CallManager(private val context: Context) {
                 
                 when (state) {
                     TelephonyManager.CALL_STATE_IDLE -> {
+                        Log.d(TAG, "=== CALL STATE IDLE DETECTED ===")
+                        Log.d(TAG, "_isCallInProgress.value: ${_isCallInProgress.value}")
+                        Log.d(TAG, "currentCallType: $currentCallType")
+                        
                         if (_isCallInProgress.value) {
                             // Call ended
+                            Log.d(TAG, "Call ended - triggering callback")
                             synchronized(callStateLock) {
                                 _isCallInProgress.value = false
                                 currentCallType?.let { callType ->
+                                    Log.d(TAG, "Invoking callback for call type: $callType")
                                     getCallEndedCallback()?.invoke(callType)
                                 }
                                 currentCallType = null
                                 clearCallbacks()
                             }
+                        } else {
+                            Log.d(TAG, "Call state IDLE but no call in progress")
                         }
                     }
                     TelephonyManager.CALL_STATE_OFFHOOK -> {

@@ -30,31 +30,14 @@ import com.flowpay.app.ui.theme.FlowPayTheme
 import com.flowpay.app.helpers.TestConfigurationHelper
 import com.flowpay.app.managers.CallType
 import com.flowpay.app.ui.dialogs.UssdProgressDialog
-// import com.flowpay.app.ui.dialogs.Upi123ProgressDialog // Replaced with AlertDialog
+// import com.flowpay.app.ui.dialogs.Upi123ProgressDialog // Replaced with custom Compose dialog
 import kotlinx.coroutines.delay
-import androidx.appcompat.app.AlertDialog
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 class TestConfigurationActivity : ComponentActivity() {
     private lateinit var testHelper: TestConfigurationHelper
-    
-    /**
-     * Show UPI123 completion AlertDialog
-     */
-    private fun showUpi123CompletionDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("UPI123 Setup Complete")
-            .setMessage("You will receive a call from the bank shortly.\n\nPlease answer the call to complete your UPI123 setup.")
-            .setPositiveButton("Got It") { dialog, _ ->
-                dialog.dismiss()
-                testHelper.handleUpi123ConfigurationConfirmation(true)
-            }
-            .setNegativeButton("Not Yet") { dialog, _ ->
-                dialog.dismiss()
-                testHelper.handleUpi123ConfigurationConfirmation(false)
-            }
-            .setCancelable(false)
-            .show()
-    }
+    private val showUpi123CompletionDialog = mutableStateOf(false)
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,7 +102,7 @@ class TestConfigurationActivity : ComponentActivity() {
             
             override fun showUpi123CompletionDialog() {
                 runOnUiThread {
-                    showUpi123CompletionDialog()
+                    showUpi123CompletionDialog.value = true
                 }
             }
             
@@ -135,7 +118,14 @@ class TestConfigurationActivity : ComponentActivity() {
         
         setContent {
             FlowPayTheme {
-                TestConfigurationScreen(testHelper = testHelper)
+                TestConfigurationScreen(
+                    testHelper = testHelper,
+                    showUpi123CompletionDialog = showUpi123CompletionDialog.value,
+                    onUpi123DialogDismiss = { confirmed ->
+                        showUpi123CompletionDialog.value = false
+                        testHelper.handleUpi123ConfigurationConfirmation(confirmed)
+                    }
+                )
             }
         }
     }
@@ -147,7 +137,11 @@ class TestConfigurationActivity : ComponentActivity() {
 }
 
 @Composable
-fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
+fun TestConfigurationScreen(
+    testHelper: TestConfigurationHelper,
+    showUpi123CompletionDialog: Boolean = false,
+    onUpi123DialogDismiss: (Boolean) -> Unit = {}
+) {
     val context = LocalContext.current
     
     // Get test states from helper
@@ -321,8 +315,152 @@ fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
             onNotConfigured = { testHelper.handleUssdConfigurationConfirmation(false) }
         )
         
-        // UPI123 Progress Dialog - Now handled by AlertDialog in TestConfigurationActivity
-        // The AlertDialog is shown programmatically when needed
+        // UPI123 Completion Dialog - Custom styled dialog matching the UI
+        if (showUpi123CompletionDialog) {
+            Upi123CompletionDialog(
+                onConfirmed = { onUpi123DialogDismiss(true) },
+                onNotYet = { onUpi123DialogDismiss(false) }
+            )
+        }
+    }
+}
+
+@Composable
+fun Upi123CompletionDialog(
+    onConfirmed: () -> Unit,
+    onNotYet: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = { },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF1C1C1E)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF2C2C2E))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Icon with gradient background
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(
+                            color = Color(0xFF4A90E2).copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(24.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = UpiIcon,
+                        contentDescription = "UPI123",
+                        tint = Color(0xFF4A90E2),
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Title
+                Text(
+                    text = "UPI123 Setup",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = (-0.5).sp
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Main question
+                Text(
+                    text = "Have you completed the UPI 123 setup?",
+                    fontSize = 17.sp,
+                    color = Color(0xFFE5E5EA),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 26.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Spacer(modifier = Modifier.height(10.dp))
+                
+                // Additional info
+                Text(
+                    text = "Confirm if you've successfully completed the setup process.",
+                    fontSize = 14.sp,
+                    color = Color(0xFF8E8E93),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp
+                )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                // Buttons with better styling
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Yes, Completed Button
+                    Button(
+                        onClick = onConfirmed,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4A90E2)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 4.dp,
+                            pressedElevation = 2.dp
+                        )
+                    ) {
+                        Text(
+                            text = "Yes, Completed",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            letterSpacing = 0.2.sp
+                        )
+                    }
+                    
+                    // Not Yet Button
+                    Button(
+                        onClick = onNotYet,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2C2C2E)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF3A3A3C))
+                    ) {
+                        Text(
+                            text = "Not Yet",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFAAAAAA),
+                            letterSpacing = 0.2.sp
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -442,10 +580,23 @@ fun TestButton(
     isTesting: Boolean,
     onClick: () -> Unit
 ) {
+    // Debounce the click handler to prevent duplicate dials
+    var lastClickTime by remember { mutableStateOf(0L) }
+    val debouncedOnClick = {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastClickTime >= 1000) { // 1 second debounce
+            lastClickTime = currentTime
+            onClick()
+        }
+    }
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(
+                enabled = !isTesting && !isCompleted,
+                onClick = debouncedOnClick
+            ),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isCompleted) Color(0xFF1A3A1A) else Color(0xFF1A1A1A)
