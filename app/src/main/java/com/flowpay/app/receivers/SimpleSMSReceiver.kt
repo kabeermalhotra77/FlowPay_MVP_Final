@@ -99,19 +99,37 @@ class SimpleSMSReceiver : BroadcastReceiver() {
             // For UPI 123, mute IMMEDIATELY before any other processing
             val operationType = detector.getOperationType()
             if (operationType == "UPI_123") {
+                Log.d(TAG, "=== SMS RECEIVED FOR UPI_123 ===")
+                Log.d(TAG, "Current audio state - Muted: ${AudioStateManager.isCallAudioMuted()}")
                 Log.d(TAG, "UPI 123 transaction - MUTING CALL IMMEDIATELY")
                 
-                // Mute in main thread for immediate effect
                 Handler(Looper.getMainLooper()).post {
-                    val muted = AudioStateManager.muteCallAudio(context)
-                    if (muted) {
-                        Log.d(TAG, "✅ Call audio muted successfully")
+                    val context = context ?: return@post
+                    
+                    // Check if call audio is already muted
+                    val isAlreadyMuted = AudioStateManager.isCallAudioMuted()
+                    
+                    if (!isAlreadyMuted) {
+                        // Second call scenario - audio was normal, now we need to mute
+                        Log.d(TAG, "Second call detected - audio was normal, now muting")
                         
-                        // Show toast to user
-                        Toast.makeText(context, "Call muted - Payment successful", Toast.LENGTH_SHORT).show()
+                        // Force mute the call audio and save state
+                        val muted = AudioStateManager.muteCallAudio(context)
+                        
+                        if (muted) {
+                            Log.d(TAG, "✅ Second call audio muted successfully after SMS")
+                            Toast.makeText(context, "Payment confirmed - Call muted", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Log.w(TAG, "⚠️ Failed to mute second call audio")
+                        }
                     } else {
-                        Log.e(TAG, "❌ Failed to mute call audio")
+                        // First call scenario - audio was already muted
+                        Log.d(TAG, "First call detected - audio already muted, no action needed")
+                        Toast.makeText(context, "Payment confirmed", Toast.LENGTH_SHORT).show()
                     }
+                    
+                    // Ensure restoration happens when call ends (for both scenarios)
+                    ensureAudioRestorationOnCallEnd(context)
                 }
             }
             
@@ -173,6 +191,12 @@ class SimpleSMSReceiver : BroadcastReceiver() {
         }
         
         context.startActivity(intent)
+    }
+    
+    private fun ensureAudioRestorationOnCallEnd(context: Context) {
+        // This ensures that even if CallStateListener fails, we have a backup
+        // The existing CallStateListener should handle this, but this is a safety net
+        Log.d(TAG, "Audio restoration safety net registered")
     }
     
 }

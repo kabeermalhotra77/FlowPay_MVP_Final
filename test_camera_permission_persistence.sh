@@ -58,3 +58,4 @@ adb logcat -d | grep -i "camera.*permission\|QRScanner.*permission" | tail -10
 
 echo ""
 echo "✅ Test completed! Follow the manual steps above to verify the fix."
+

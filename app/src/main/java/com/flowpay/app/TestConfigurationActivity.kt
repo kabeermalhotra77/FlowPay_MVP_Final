@@ -30,11 +30,31 @@ import com.flowpay.app.ui.theme.FlowPayTheme
 import com.flowpay.app.helpers.TestConfigurationHelper
 import com.flowpay.app.managers.CallType
 import com.flowpay.app.ui.dialogs.UssdProgressDialog
-import com.flowpay.app.ui.dialogs.Upi123ProgressDialog
+// import com.flowpay.app.ui.dialogs.Upi123ProgressDialog // Replaced with AlertDialog
 import kotlinx.coroutines.delay
+import androidx.appcompat.app.AlertDialog
 
 class TestConfigurationActivity : ComponentActivity() {
     private lateinit var testHelper: TestConfigurationHelper
+    
+    /**
+     * Show UPI123 completion AlertDialog
+     */
+    private fun showUpi123CompletionDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("UPI123 Setup Complete")
+            .setMessage("You will receive a call from the bank shortly.\n\nPlease answer the call to complete your UPI123 setup.")
+            .setPositiveButton("Got It") { dialog, _ ->
+                dialog.dismiss()
+                testHelper.handleUpi123ConfigurationConfirmation(true)
+            }
+            .setNegativeButton("Not Yet") { dialog, _ ->
+                dialog.dismiss()
+                testHelper.handleUpi123ConfigurationConfirmation(false)
+            }
+            .setCancelable(false)
+            .show()
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,6 +115,12 @@ class TestConfigurationActivity : ComponentActivity() {
             
             override fun updateUssdConfigurationOptions(show: Boolean) {
                 // State will be managed by the composable
+            }
+            
+            override fun showUpi123CompletionDialog() {
+                runOnUiThread {
+                    showUpi123CompletionDialog()
+                }
             }
             
             override fun navigateToMain() {
@@ -295,13 +321,8 @@ fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
             onNotConfigured = { testHelper.handleUssdConfigurationConfirmation(false) }
         )
         
-        // UPI123 Progress Dialog
-        Upi123ProgressDialog(
-            isVisible = showUpi123Dialog || showUpi123ConfigurationOptions,
-            showConfigurationOptions = showUpi123ConfigurationOptions,
-            onConfigured = { testHelper.handleUpi123ConfigurationConfirmation(true) },
-            onNotConfigured = { testHelper.handleUpi123ConfigurationConfirmation(false) }
-        )
+        // UPI123 Progress Dialog - Now handled by AlertDialog in TestConfigurationActivity
+        // The AlertDialog is shown programmatically when needed
     }
 }
 

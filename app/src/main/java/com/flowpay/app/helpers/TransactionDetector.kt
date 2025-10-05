@@ -124,6 +124,23 @@ class TransactionDetector private constructor(private val context: Context) {
             "txn successful"
         )
         
+        // Informational message indicators to filter out (not actual transaction confirmations)
+        private val INFORMATIONAL_KEYWORDS = listOf(
+            "credit alert",
+            "credited to your account",
+            "account credited",
+            "account has been credited",
+            "balance alert",
+            "promotional",
+            "offer",
+            "cashback alert",
+            "reward credited",
+            "loyalty points",
+            "minimum balance",
+            "statement",
+            "due date"
+        )
+        
         // Amount patterns - multiple formats
         private val AMOUNT_PATTERNS = listOf(
             "(?:Rs\\.?|INR|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)",
@@ -203,14 +220,22 @@ class TransactionDetector private constructor(private val context: Context) {
         }
         Log.d(TAG, "Detected bank: $bankName")
         
-        // Step 2: Check if it's a transaction message
+        // Step 2: Filter out informational messages (credit alerts, promotional messages, etc.)
+        if (isInformationalMessage(body)) {
+            Log.d(TAG, "❌ Ignoring informational message (credit alert/promotional)")
+            Log.d(TAG, "Message preview: ${body.take(80)}...")
+            return null
+        }
+        Log.d(TAG, "Not an informational message, proceeding...")
+        
+        // Step 3: Check if it's a transaction message
         if (!isTransactionMessage(body)) {
             Log.d(TAG, "Not a transaction message")
             return null
         }
         Log.d(TAG, "Transaction message confirmed")
         
-        // Step 3: Extract amount
+        // Step 4: Extract amount
         val amount = extractAmount(body)
         if (amount == null) {
             Log.d(TAG, "Could not extract amount")
@@ -218,7 +243,7 @@ class TransactionDetector private constructor(private val context: Context) {
         }
         Log.d(TAG, "Extracted amount: $amount")
         
-        // Step 4: Validate amount if expected
+        // Step 5: Validate amount if expected
         val expectedAmount = prefs.getString(KEY_EXPECTED_AMOUNT, null)
         if (!expectedAmount.isNullOrEmpty()) {
             if (!isAmountMatching(amount, expectedAmount)) {
@@ -227,7 +252,7 @@ class TransactionDetector private constructor(private val context: Context) {
             }
         }
         
-        // Step 5: Generate transaction ID
+        // Step 6: Generate transaction ID
         val transactionId = extractTransactionId(body) ?: generateTransactionId()
         val upiId = extractUPIId(body)
         val transactionType = detectTransactionType(body)
@@ -237,7 +262,7 @@ class TransactionDetector private constructor(private val context: Context) {
         
         Log.d(TAG, "Extracted recipient: $recipientName, phone: $phoneNumber")
         
-        // Step 6: Mark operation complete
+        // Step 7: Mark operation complete
         stopOperation()
         
         return SimpleTransaction(
@@ -282,6 +307,20 @@ class TransactionDetector private constructor(private val context: Context) {
         }
         
         return null
+    }
+    
+    private fun isInformationalMessage(body: String): Boolean {
+        val bodyLower = body.lowercase(Locale.getDefault())
+        
+        // Check if message contains any informational/alert keywords
+        for (keyword in INFORMATIONAL_KEYWORDS) {
+            if (bodyLower.contains(keyword.lowercase())) {
+                Log.d(TAG, "Informational message detected - contains: '$keyword'")
+                return true
+            }
+        }
+        
+        return false
     }
     
     private fun isTransactionMessage(body: String): Boolean {

@@ -24,12 +24,16 @@ object AudioStateManager {
                 Log.d(TAG, "Set audio mode to IN_CALL")
             }
             
-            // Save ALL original states
-            originalCallVolume = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
-            originalMicMute = audioManager.isMicrophoneMute
-            val originalRingerMode = audioManager.ringerMode
+            // Save original state ONLY if not already saved (prevents overwriting during second mute)
+            if (originalCallVolume == -1) {
+                originalCallVolume = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+                originalMicMute = audioManager.isMicrophoneMute
+                Log.d(TAG, "Saved original audio state: volume=$originalCallVolume, micMute=$originalMicMute")
+            } else {
+                Log.d(TAG, "Original audio state already saved: volume=$originalCallVolume, micMute=$originalMicMute")
+            }
             
-            Log.d(TAG, "Original call volume: $originalCallVolume")
+            Log.d(TAG, "Current call volume: ${audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)}")
             Log.d(TAG, "Max call volume: ${audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)}")
             
             // Method 1: Set call volume to 0
@@ -110,7 +114,7 @@ object AudioStateManager {
             // Restore microphone state
             audioManager.isMicrophoneMute = originalMicMute
             
-            Log.d(TAG, "Call audio restored to volume: $originalCallVolume")
+            Log.d(TAG, "✅ Audio restored successfully - volume: $originalCallVolume, micMute: $originalMicMute")
             
             // Reset saved states
             originalCallVolume = -1
@@ -119,7 +123,7 @@ object AudioStateManager {
             
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to restore call audio", e)
+            Log.e(TAG, "Failed to restore call audio: ${e.message}", e)
             false
         }
     }

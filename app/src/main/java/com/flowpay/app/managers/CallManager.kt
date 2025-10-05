@@ -385,20 +385,9 @@ class CallManager(private val context: Context) {
                     Log.d(TAG, "currentCallType: $currentCallType")
                 }
                 
-                // Set up phone state listener for call monitoring
-                synchronized(listenerLock) {
-                    phoneStateListener = createPhoneStateListener { callType ->
-                        Log.d(TAG, "=== UPI123 CALL ENDED ===")
-                        Log.d(TAG, "Call type: $callType")
-                        synchronized(callStateLock) {
-                            _isCallInProgress.value = false
-                            currentCallType = null
-                            Log.d(TAG, "Call state reset - _isCallInProgress: ${_isCallInProgress.value}")
-                        }
-                    }
-                    telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
-                    Log.d(TAG, "=== PHONE STATE LISTENER REGISTERED FOR UPI123 ===")
-                }
+                // Note: Phone state monitoring for UPI123 calls is handled by CallStateMonitor
+                // in CallOverlayService to avoid conflicts and ensure proper overlay dismissal
+                Log.d(TAG, "=== UPI123 CALL STATE TRACKING ENABLED (CallStateMonitor will handle call end) ===")
                 
                 context.startActivity(intent)
                 Log.d("OverlayDebug", "Call activity started successfully - returning true")

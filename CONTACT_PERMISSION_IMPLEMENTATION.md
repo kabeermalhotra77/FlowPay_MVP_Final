@@ -88,3 +88,4 @@ This script will:
 ## Related Implementations
 
 This implementation follows the same pattern as the camera permission implementation, ensuring consistency across the app for optional permissions that are only needed for specific features.
+

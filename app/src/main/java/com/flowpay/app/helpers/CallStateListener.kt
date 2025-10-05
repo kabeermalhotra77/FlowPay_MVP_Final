@@ -19,10 +19,17 @@ class CallStateListener(private val context: Context) : PhoneStateListener() {
                 // Call ended or no call
                 Log.d(TAG, "Call state: IDLE - Call ended")
                 
-                // Restore audio if it was muted
+                // Restore audio if it was muted (works for both first and second call)
                 if (AudioStateManager.isCallAudioMuted()) {
-                    Log.d(TAG, "Call ended, restoring audio...")
-                    AudioStateManager.restoreCallAudio(context)
+                    Log.d(TAG, "Audio was muted, restoring now")
+                    val restored = AudioStateManager.restoreCallAudio(context)
+                    if (restored) {
+                        Log.d(TAG, "✅ Audio restoration successful")
+                    } else {
+                        Log.w(TAG, "⚠️ Audio restoration failed")
+                    }
+                } else {
+                    Log.d(TAG, "Audio was not muted, no restoration needed")
                 }
             }
             

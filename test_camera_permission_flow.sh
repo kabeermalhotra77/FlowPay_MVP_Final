@@ -63,3 +63,4 @@ echo "3. Verify that camera permission dialog appears"
 echo "4. Grant permission and verify camera starts"
 echo ""
 echo "✅ Test completed! Check the logs above for any unexpected camera permission requests during setup."
+

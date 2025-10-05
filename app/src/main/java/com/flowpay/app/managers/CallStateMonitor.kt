@@ -157,11 +157,23 @@ class CallStateMonitor(private val context: Context) {
     
     /**
      * Check if the incoming call is from UPI service
+     * For UPI123 calls, phone number is often blank, so we check if we're in a UPI call context
      */
     private fun isUpiCall(phoneNumber: String?): Boolean {
-        if (phoneNumber.isNullOrBlank() || upiServiceNumber.isNullOrBlank()) {
-            return false
+        // If we have a valid UPI service number and phone number matches, it's definitely a UPI call
+        if (!phoneNumber.isNullOrBlank() && !upiServiceNumber.isNullOrBlank()) {
+            return PhoneNumberUtils.isPhoneNumberMatch(phoneNumber, upiServiceNumber)
         }
-        return PhoneNumberUtils.isPhoneNumberMatch(phoneNumber, upiServiceNumber)
+        
+        // For UPI123 calls, phone number is often blank, so we need to check if overlay service
+        // is active and expecting a UPI call (this indicates we're in a UPI123 call context)
+        if (phoneNumber.isNullOrBlank() && overlayService != null) {
+            Log.d(TAG, "Blank phone number detected - checking if this is a UPI123 call context")
+            // If overlay service is active and expecting a UPI call, assume this is a UPI call
+            val service = overlayService
+            return service?.isActiveAndExpectingUpiCall() ?: false
+        }
+        
+        return false
     }
 }

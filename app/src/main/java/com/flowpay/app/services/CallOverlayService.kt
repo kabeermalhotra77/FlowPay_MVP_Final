@@ -830,6 +830,14 @@ class CallOverlayService : Service() {
     }
     
     /**
+     * Check if overlay service is active and expecting a UPI call
+     * This helps CallStateMonitor determine if a blank phone number is a UPI call
+     */
+    fun isActiveAndExpectingUpiCall(): Boolean {
+        return isOverlayActive && isCallDetected
+    }
+    
+    /**
      * Handle call ended with different reasons
      */
     private fun handleCallEnded(reason: CallStateMonitor.CallEndReason) {

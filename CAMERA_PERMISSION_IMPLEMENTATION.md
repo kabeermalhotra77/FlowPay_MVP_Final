@@ -71,3 +71,4 @@ This script will:
 ✅ **Completed**: Setup screen no longer requests camera permission
 ✅ **Completed**: Permission flow is contextual and user-friendly
 ✅ **Completed**: Test script provided for verification
+

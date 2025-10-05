@@ -65,6 +65,7 @@ class TestConfigurationHelper(
         fun updateCallCompleteButton(show: Boolean)
         fun updateUssdProgressMessage(message: String)
         fun updateUssdConfigurationOptions(show: Boolean)
+        fun showUpi123CompletionDialog()
         fun navigateToMain()
     }
     
@@ -301,15 +302,17 @@ class TestConfigurationHelper(
                         upi123Testing = false
                         uiCallback.updateUpi123Testing(false)
                         
-                        // Add 2-second delay before showing configuration dialog
+                        // Add 2-second delay before showing AlertDialog
                         val handler = android.os.Handler(android.os.Looper.getMainLooper())
                         handler.postDelayed({
                             if (!upi123TestCompleted) {
                                 showUpi123Dialog = false
-                                showUpi123ConfigurationOptions = true
+                                showUpi123ConfigurationOptions = false
                                 uiCallback.updateUpi123Dialog(false)
-                                uiCallback.updateUpi123ConfigurationOptions(true)
-                                Log.d(TAG, "UPI123 configuration dialog shown after 2 second delay")
+                                uiCallback.updateUpi123ConfigurationOptions(false)
+                                // Show AlertDialog instead of Compose dialog
+                                uiCallback.showUpi123CompletionDialog()
+                                Log.d(TAG, "UPI123 AlertDialog shown after 2 second delay")
                             }
                         }, 2000) // 2 second delay
                     }

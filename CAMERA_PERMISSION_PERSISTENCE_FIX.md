@@ -84,3 +84,4 @@ Use the provided test script:
 ## Related Issues
 
 This fix addresses the user's concern about the camera permission dialog appearing every time they open the QR scanner. The dialog will now only appear once, and after the user grants permission, the QR scanner will open directly without any dialogs.
+

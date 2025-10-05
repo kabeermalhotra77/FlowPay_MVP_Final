@@ -2,16 +2,19 @@ package com.flowpay.app.managers
 
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import com.flowpay.app.R
+import com.flowpay.app.MainActivity
 
 /**
  * Manages transaction-related dialogs based on call outcomes
@@ -23,22 +26,67 @@ class TransactionDialogManager(private val context: Context) {
     }
     
     /**
+     * Bring the app to the foreground to ensure dialogs are visible
+     */
+    private fun bringAppToForeground() {
+        try {
+            Log.d(TAG, "Bringing app to foreground for dialog visibility")
+            
+            // Create intent to bring MainActivity to foreground
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                       Intent.FLAG_ACTIVITY_CLEAR_TOP or 
+                       Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                       Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT
+            }
+            
+            context.startActivity(intent)
+            
+            // Small delay to ensure activity is brought to foreground
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                Log.d(TAG, "App brought to foreground successfully")
+            }, 100)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to bring app to foreground: ${e.message}")
+        }
+    }
+    
+    /**
      * Show dialog when user cancels the transaction by ending the call early
      */
     fun showTransactionCancelled() {
         Log.d(TAG, "Showing transaction cancelled dialog")
         
         try {
-            AlertDialog.Builder(context)
-                .setTitle("Transaction Cancelled")
-                .setMessage("You cancelled the transaction by ending the call early. No payment was processed.")
-                .setPositiveButton("OK") { dialog, _ ->
-                    dialog.dismiss()
-                    Log.d(TAG, "Transaction cancelled dialog dismissed")
-                }
-                .setCancelable(false)
-                .create()
-                .show()
+            // Bring app to foreground first
+            bringAppToForeground()
+            
+            // Small delay to ensure app is in foreground before showing dialog
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                val dialog = AlertDialog.Builder(context)
+                    .setTitle("Transaction Cancelled")
+                    .setMessage("You cancelled the transaction by ending the call early. No payment was processed.")
+                    .setPositiveButton("OK") { dialog, _ ->
+                        dialog.dismiss()
+                        Log.d(TAG, "Transaction cancelled dialog dismissed")
+                    }
+                    .setCancelable(false)
+                    .create()
+                
+                // Set window flags to ensure dialog appears on top
+                dialog.window?.setFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                )
+                
+                dialog.show()
+            }, 200)
+            
         } catch (e: Exception) {
             Log.e(TAG, "Failed to show transaction cancelled dialog: ${e.message}")
             // Fallback to toast if dialog fails
@@ -77,61 +125,96 @@ class TransactionDialogManager(private val context: Context) {
         Log.d(TAG, "Showing transaction completed dialog")
         
         try {
-            // Create custom dialog with FlowPay design
-            val dialogBuilder = AlertDialog.Builder(context)
-            val inflater = LayoutInflater.from(context)
-            val dialogView = inflater.inflate(R.layout.dialog_transaction_success, null)
+            // Bring app to foreground first
+            bringAppToForeground()
             
-            // Setup dialog appearance
-            val dialog = dialogBuilder
-                .setView(dialogView)
-                .setCancelable(false)
-                .create()
-            
-            // Make dialog background transparent and rounded
-            dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            
-            // Setup success icon
-            val successIcon = dialogView.findViewById<ImageView>(R.id.iv_success_icon)
-            successIcon?.setImageResource(R.drawable.ic_success_check)
-            successIcon?.setColorFilter(context.getColor(R.color.flowpay_green))
-            
-            // Setup title
-            val titleText = dialogView.findViewById<TextView>(R.id.tv_success_title)
-            titleText?.text = "Payment Successful"
-            
-            // Setup message
-            val messageText = dialogView.findViewById<TextView>(R.id.tv_success_message)
-            messageText?.text = "Your payment has been processed successfully! You will receive a confirmation SMS shortly."
-            
-            // Setup done button
-            val doneButton = dialogView.findViewById<Button>(R.id.btn_done)
-            doneButton?.setOnClickListener {
-                dialog.dismiss()
-                Log.d(TAG, "Transaction completed dialog dismissed")
-            }
-            
-            dialog.show()
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to show transaction completed dialog: ${e.message}")
-            // Fallback to basic dialog
-            try {
-                AlertDialog.Builder(context)
-                    .setTitle("Transaction Successful")
-                    .setMessage("Your payment has been processed successfully! You will receive a confirmation SMS shortly.")
-                    .setPositiveButton("Great!") { dialog, _ ->
+            // Small delay to ensure app is in foreground before showing dialog
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                try {
+                    // Create custom dialog with FlowPay design
+                    val dialogBuilder = AlertDialog.Builder(context)
+                    val inflater = LayoutInflater.from(context)
+                    val dialogView = inflater.inflate(R.layout.dialog_transaction_success, null)
+                    
+                    // Setup dialog appearance
+                    val dialog = dialogBuilder
+                        .setView(dialogView)
+                        .setCancelable(false)
+                        .create()
+                    
+                    // Make dialog background transparent and rounded
+                    dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+                    
+                    // Set window flags to ensure dialog appears on top
+                    dialog.window?.setFlags(
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                    )
+                    
+                    // Setup success icon
+                    val successIcon = dialogView.findViewById<ImageView>(R.id.iv_success_icon)
+                    successIcon?.setImageResource(R.drawable.ic_success_check)
+                    successIcon?.setColorFilter(context.getColor(R.color.flowpay_green))
+                    
+                    // Setup title
+                    val titleText = dialogView.findViewById<TextView>(R.id.tv_success_title)
+                    titleText?.text = "Payment Successful"
+                    
+                    // Setup message
+                    val messageText = dialogView.findViewById<TextView>(R.id.tv_success_message)
+                    messageText?.text = "Your payment has been processed successfully! You will receive a confirmation SMS shortly."
+                    
+                    // Setup done button
+                    val doneButton = dialogView.findViewById<Button>(R.id.btn_done)
+                    doneButton?.setOnClickListener {
                         dialog.dismiss()
                         Log.d(TAG, "Transaction completed dialog dismissed")
                     }
-                    .setCancelable(false)
-                    .create()
-                    .show()
-            } catch (e2: Exception) {
-                Log.e(TAG, "Failed to show fallback dialog: ${e2.message}")
-                // Final fallback to toast
-                Toast.makeText(context, "Transaction completed successfully!", Toast.LENGTH_LONG).show()
-            }
+                    
+                    dialog.show()
+                    
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to show custom transaction completed dialog: ${e.message}")
+                    
+                    // Fallback to basic dialog
+                    try {
+                        val fallbackDialog = AlertDialog.Builder(context)
+                            .setTitle("Transaction Successful")
+                            .setMessage("Your payment has been processed successfully! You will receive a confirmation SMS shortly.")
+                            .setPositiveButton("Great!") { dialog, _ ->
+                                dialog.dismiss()
+                                Log.d(TAG, "Transaction completed dialog dismissed")
+                            }
+                            .setCancelable(false)
+                            .create()
+                        
+                        // Set window flags for fallback dialog too
+                        fallbackDialog.window?.setFlags(
+                            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                        )
+                        
+                        fallbackDialog.show()
+                    } catch (e2: Exception) {
+                        Log.e(TAG, "Failed to show fallback dialog: ${e2.message}")
+                        // Final fallback to toast
+                        Toast.makeText(context, "Transaction completed successfully!", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }, 200)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show transaction completed dialog: ${e.message}")
+            // Fallback to toast if dialog fails
+            Toast.makeText(context, "Transaction completed successfully!", Toast.LENGTH_LONG).show()
         }
     }
     
@@ -142,20 +225,38 @@ class TransactionDialogManager(private val context: Context) {
         Log.d(TAG, "Showing transaction failed dialog")
         
         try {
-            AlertDialog.Builder(context)
-                .setTitle("Transaction Failed")
-                .setMessage("The call ended unexpectedly. This could be due to network issues or the recipient's phone being busy. Please try again.")
-                .setPositiveButton("Retry") { dialog, _ ->
-                    dialog.dismiss()
-                    Log.d(TAG, "Transaction failed dialog dismissed - user chose to retry")
-                }
-                .setNegativeButton("Cancel") { dialog, _ ->
-                    dialog.dismiss()
-                    Log.d(TAG, "Transaction failed dialog dismissed - user chose to cancel")
-                }
-                .setCancelable(false)
-                .create()
-                .show()
+            // Bring app to foreground first
+            bringAppToForeground()
+            
+            // Small delay to ensure app is in foreground before showing dialog
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                val dialog = AlertDialog.Builder(context)
+                    .setTitle("Transaction Failed")
+                    .setMessage("The call ended unexpectedly. This could be due to network issues or the recipient's phone being busy. Please try again.")
+                    .setPositiveButton("Retry") { dialog, _ ->
+                        dialog.dismiss()
+                        Log.d(TAG, "Transaction failed dialog dismissed - user chose to retry")
+                    }
+                    .setNegativeButton("Cancel") { dialog, _ ->
+                        dialog.dismiss()
+                        Log.d(TAG, "Transaction failed dialog dismissed - user chose to cancel")
+                    }
+                    .setCancelable(false)
+                    .create()
+                
+                // Set window flags to ensure dialog appears on top
+                dialog.window?.setFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                )
+                
+                dialog.show()
+            }, 200)
+            
         } catch (e: Exception) {
             Log.e(TAG, "Failed to show transaction failed dialog: ${e.message}")
             // Fallback to toast if dialog fails
@@ -170,16 +271,34 @@ class TransactionDialogManager(private val context: Context) {
         Log.d(TAG, "Showing system terminated dialog")
         
         try {
-            AlertDialog.Builder(context)
-                .setTitle("Call Terminated")
-                .setMessage("The call was terminated by the system. This could be due to network issues or service unavailability. Please try again later.")
-                .setPositiveButton("OK") { dialog, _ ->
-                    dialog.dismiss()
-                    Log.d(TAG, "System terminated dialog dismissed")
-                }
-                .setCancelable(false)
-                .create()
-                .show()
+            // Bring app to foreground first
+            bringAppToForeground()
+            
+            // Small delay to ensure app is in foreground before showing dialog
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                val dialog = AlertDialog.Builder(context)
+                    .setTitle("Call Terminated")
+                    .setMessage("The call was terminated by the system. This could be due to network issues or service unavailability. Please try again later.")
+                    .setPositiveButton("OK") { dialog, _ ->
+                        dialog.dismiss()
+                        Log.d(TAG, "System terminated dialog dismissed")
+                    }
+                    .setCancelable(false)
+                    .create()
+                
+                // Set window flags to ensure dialog appears on top
+                dialog.window?.setFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                )
+                
+                dialog.show()
+            }, 200)
+            
         } catch (e: Exception) {
             Log.e(TAG, "Failed to show system terminated dialog: ${e.message}")
             // Fallback to toast if dialog fails

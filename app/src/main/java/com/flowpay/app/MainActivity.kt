@@ -28,9 +28,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -135,6 +136,7 @@ import com.flowpay.app.ui.activities.TransactionHistoryActivity
 import com.flowpay.app.ui.activities.SettingsActivity
 import com.flowpay.app.ui.dialogs.Contact
 import com.flowpay.app.ui.dialogs.ContactPickerDialog
+import com.flowpay.app.ui.components.PaymentDetailsDetailDialog
 import com.flowpay.app.managers.FormStateManager
 import com.flowpay.app.managers.PermissionManager
 import com.flowpay.app.utils.TestTransactionGenerator
@@ -856,6 +858,7 @@ fun MainScreen(
     var isScanning by remember { mutableStateOf(false) }
     var showCallDurationDialog by remember { mutableStateOf(false) }
     var showCallSuccessDialog by remember { mutableStateOf(false) }
+    var selectedPayment by remember { mutableStateOf<PaymentDetails?>(null) }
     
     
     // Set up callback for call duration dialog
@@ -1396,7 +1399,10 @@ fun MainScreen(
                                     verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     items(recentPayments) { payment ->
-                                        TransactionItem(payment = payment)
+                                        TransactionItem(
+                                            payment = payment,
+                                            onClick = { selectedPayment = payment }
+                                        )
                                     }
                                 }
                             }
@@ -1451,16 +1457,28 @@ fun MainScreen(
                     onDismiss = { showCallSuccessDialog = false }
                 )
             }
+
+            // Payment Details Dialog
+            selectedPayment?.let { payment ->
+                PaymentDetailsDetailDialog(
+                    payment = payment,
+                    onDismiss = { selectedPayment = null }
+                )
+            }
         }
     }
 }
 
 @Composable
-fun TransactionItem(payment: PaymentDetails) {
+fun TransactionItem(
+    payment: PaymentDetails,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(90.dp), // Increased height for better text spacing
+            .height(90.dp) // Increased height for better text spacing
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp), // Match button corner radius style
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFF0A0A0A) // Very slightly lighter than pure black for subtle distinction
@@ -2102,12 +2120,100 @@ fun CallSuccessDialog(
                     lineHeight = 20.sp,
                     fontWeight = FontWeight.Medium
                 )
-                Text(
-                    text = "1. Open your dialer\n2. Press 1 to confirm the request\n3. Enter your PIN",
-                    color = Color(0xFFAAAAAA),
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp
-                )
+                // Enhanced steps with individual highlighting
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Step 1
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(
+                                    color = Color(0xFF4A9EFF),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "1",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = "Open your dialer",
+                            color = Color(0xFF4A9EFF),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            lineHeight = 20.sp
+                        )
+                    }
+                    
+                    // Step 2
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(
+                                    color = Color(0xFF4A9EFF),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "2",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = "Press 1 to confirm the request",
+                            color = Color(0xFF4A9EFF),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            lineHeight = 20.sp
+                        )
+                    }
+                    
+                    // Step 3
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(
+                                    color = Color(0xFF4A9EFF),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "3",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = "Enter your PIN",
+                            color = Color(0xFF4A9EFF),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
             }
         },
         confirmButton = {

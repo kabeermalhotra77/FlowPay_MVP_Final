@@ -64,3 +64,4 @@ echo "4. Verify that contact permission dialog appears"
 echo "5. Grant permission and verify contact picker opens"
 echo ""
 echo "✅ Test completed! Check the logs above for any unexpected contact permission requests during setup."
+
