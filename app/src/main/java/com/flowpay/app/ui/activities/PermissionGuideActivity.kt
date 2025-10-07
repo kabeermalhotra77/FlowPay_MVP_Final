@@ -241,7 +241,6 @@ class PermissionGuideActivity : AppCompatActivity() {
     }
     
     private fun onPermissionGranted() {
-        errorRecoveryManager.showSuccessToast("Permission granted successfully!")
         
         if (currentPermissionType == PERMISSION_ALL) {
             nextPermission()
@@ -251,7 +250,6 @@ class PermissionGuideActivity : AppCompatActivity() {
     }
     
     private fun onPermissionDenied() {
-        errorRecoveryManager.showErrorToast("Permission denied. Some features may not work properly.")
         
         if (currentPermissionType == PERMISSION_ALL) {
             nextPermission()

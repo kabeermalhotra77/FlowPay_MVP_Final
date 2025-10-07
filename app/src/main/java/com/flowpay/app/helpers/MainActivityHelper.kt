@@ -50,6 +50,11 @@ class MainActivityHelper(
     // Permission request tracking
     private var isRequestingPermissions = false
     
+    // Pending transfer state for permission flow
+    private var pendingTransferPhone: String? = null
+    private var pendingTransferAmount: String? = null
+    private var isAwaitingPermissionForTransfer = false
+    
     // Legacy services for compatibility
     private lateinit var telephonyManager: TelephonyManager
     
@@ -150,7 +155,6 @@ class MainActivityHelper(
         // Check other basic permissions
         if (permissionManager?.checkAllPermissions() != true) {
             Log.d(TAG, "Other permissions not granted, requesting...")
-            uiCallback.showToast("Requesting required permissions...")
             isRequestingPermissions = true
             permissionManager?.requestRequiredPermissions()
             return
@@ -159,7 +163,6 @@ class MainActivityHelper(
         // Check overlay permission for USSD functionality
         if (permissionManager?.canDrawOverlays() != true) {
             Log.d(TAG, "Overlay permission not granted, requesting...")
-            uiCallback.showToast("Requesting overlay permission for payment protection...")
             isRequestingPermissions = true
             permissionManager?.requestOverlayPermission()
             // Don't return here - let the permission result handler open QR scanner
@@ -184,24 +187,79 @@ class MainActivityHelper(
                 isRequestingPermissions = false
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && 
                     android.provider.Settings.canDrawOverlays(context)) {
-                    Log.d(TAG, "Overlay permission granted, not opening QR scanner - form state will be restored")
-                    // Don't open QR scanner, let form state restoration handle it
-                    startQRScanning(isFromPermissionGrant = true)
+                    Log.d(TAG, "Overlay permission granted")
+                    
+                    // Check if we were waiting for permission to complete transfer
+                    if (isAwaitingPermissionForTransfer && pendingTransferPhone != null && pendingTransferAmount != null) {
+                        Log.d(TAG, "Overlay permission granted - checking other permissions for pending transfer")
+                        
+                        val stillMissing = getMissingTransferPermissions()
+                        if (stillMissing.isEmpty()) {
+                            // All permissions granted - resume transfer
+                            val phone = pendingTransferPhone!!
+                            val amount = pendingTransferAmount!!
+                            
+                            // Clear pending state
+                            pendingTransferPhone = null
+                            pendingTransferAmount = null
+                            isAwaitingPermissionForTransfer = false
+                            
+                            // Retry transfer
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                initiateTransfer(phone, amount)
+                            }, 500)
+                        } else {
+                            Log.w(TAG, "Overlay granted but still missing: $stillMissing")
+                        }
+                    } else {
+                        // Existing QR scanner flow
+                        Log.d(TAG, "Overlay permission granted, not opening QR scanner - form state will be restored")
+                        // Don't open QR scanner, let form state restoration handle it
+                        startQRScanning(isFromPermissionGrant = true)
+                    }
                 } else {
-                    Log.w(TAG, "Overlay permission not granted, QR scanning cannot proceed")
-                    uiCallback.showToast("Overlay permission is required for QR scanning. Please enable it in Settings.")
+                    Log.w(TAG, "Overlay permission not granted")
+                    if (isAwaitingPermissionForTransfer) {
+                    } else {
+                    }
                 }
             }
             PermissionConstants.PERMISSIONS_REQUEST_CODE -> {
                 Log.d(TAG, "Basic permissions result received")
                 isRequestingPermissions = false
-                // Handle basic permission results if needed
-                if (permissionManager?.checkAllPermissions() == true) {
-                    Log.d(TAG, "Basic permissions granted, checking overlay permission")
-                    startQRScanning()
+                
+                // Check if we were waiting for permission to complete transfer
+                if (isAwaitingPermissionForTransfer && pendingTransferPhone != null && pendingTransferAmount != null) {
+                    Log.d(TAG, "Permissions granted - checking if we can resume pending transfer")
+                    
+                    // Check if all permissions are now granted
+                    val stillMissing = getMissingTransferPermissions()
+                    if (stillMissing.isEmpty() && permissionManager?.checkOverlayPermission() == true) {
+                        // All permissions granted - resume transfer
+                        val phone = pendingTransferPhone!!
+                        val amount = pendingTransferAmount!!
+                        
+                        // Clear pending state
+                        pendingTransferPhone = null
+                        pendingTransferAmount = null
+                        isAwaitingPermissionForTransfer = false
+                        
+                        // Retry transfer
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            initiateTransfer(phone, amount)
+                        }, 500)
+                    } else {
+                        Log.w(TAG, "Still missing permissions: $stillMissing or overlay: ${permissionManager?.checkOverlayPermission()}")
+                        // Keep state for next permission grant
+                    }
                 } else {
-                    Log.w(TAG, "Basic permissions not granted")
-                    uiCallback.showToast("Required permissions not granted. Please try again.")
+                    // Handle basic permission results for QR scanning
+                    if (permissionManager?.checkAllPermissions() == true) {
+                        Log.d(TAG, "Basic permissions granted, checking overlay permission")
+                        startQRScanning()
+                    } else {
+                        Log.w(TAG, "Basic permissions not granted")
+                    }
                 }
             }
         }
@@ -333,6 +391,28 @@ class MainActivityHelper(
     }
 
     
+    /**
+     * Check if all permissions required for transfer are granted
+     * Returns list of missing permissions
+     */
+    private fun getMissingTransferPermissions(): List<String> {
+        val requiredPermissions = listOf(
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.READ_SMS,
+            Manifest.permission.ANSWER_PHONE_CALLS
+        )
+        
+        Log.d(TAG, "=== CHECKING TRANSFER PERMISSIONS ===")
+        val missingPermissions = requiredPermissions.filter { permission ->
+            val isGranted = permissionManager?.isPermissionGranted(permission) ?: false
+            Log.d(TAG, "Transfer permission $permission: ${if (isGranted) "GRANTED" else "DENIED"}")
+            !isGranted
+        }
+        Log.d(TAG, "Missing transfer permissions: ${missingPermissions.joinToString()}")
+        return missingPermissions
+    }
 
     /**
      * Initiate transfer with validation and business logic
@@ -358,30 +438,53 @@ class MainActivityHelper(
             return
         }
         
-        // Check permissions
-        if (permissionManager?.checkAllPermissions() != true) {
-            uiCallback.showToast("Required permissions not granted")
-            permissionManager?.requestRequiredPermissions()
+        // Check ALL required permissions before transfer
+        val missingPermissions = getMissingTransferPermissions()
+        if (missingPermissions.isNotEmpty()) {
+            Log.d(TAG, "Missing permissions for transfer: ${missingPermissions.joinToString()}")
+            
+            // Save transfer details to resume after permission grant
+            pendingTransferPhone = phoneNumber
+            pendingTransferAmount = amount
+            isAwaitingPermissionForTransfer = true
+            
+            // Request missing permissions directly (no dialog)
+            permissionManager?.requestSpecificPermissions(missingPermissions)
             return
         }
         
+        // Check overlay permission
         if (permissionManager?.checkOverlayPermission() != true) {
-            uiCallback.showToast("Overlay permission required")
+            
+            // Save transfer details
+            pendingTransferPhone = phoneNumber
+            pendingTransferAmount = amount
+            isAwaitingPermissionForTransfer = true
+            
             permissionManager?.requestOverlayPermission()
             return
         }
         
         // Additional overlay permission validation
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
-            uiCallback.showToast("Overlay permission required for call protection")
+            
+            // Save transfer details
+            pendingTransferPhone = phoneNumber
+            pendingTransferAmount = amount
+            isAwaitingPermissionForTransfer = true
+            
             permissionManager?.requestOverlayPermission()
             return
         }
         
+        // All permissions granted - proceed with transfer
+        Log.d(TAG, "All permissions granted - proceeding with transfer")
+        
         // Start SMS monitoring for UPI 123 transfer
         com.flowpay.app.helpers.TransactionDetector.getInstance(context).startOperation(
             operationType = "UPI_123",
-            expectedAmount = amount
+            expectedAmount = amount,
+            phoneNumber = phoneNumber
         )
         
         // Set UPI call state with service number for proper detection
@@ -399,8 +502,8 @@ class MainActivityHelper(
                 uiCallback.showCallDurationIssueDialog()
             },
             onCallSuccessful = {
-                Log.d("MainActivityHelper", "✅ Call completed successfully after 25 seconds - NO DIALOG (user will wait for SMS)")
-                // SUCCESS DIALOG REMOVED - User will wait for SMS confirmation instead
+                Log.d("MainActivityHelper", "✅ Call ended between 25-40 seconds - showing success dialog")
+                uiCallback.showCallSuccessDialog()
             },
             onCallTimeout = {
                 Log.w("MainActivityHelper", "⏰ Call exceeded 40 seconds - timeout triggered")
@@ -437,7 +540,6 @@ class MainActivityHelper(
             // Check overlay permission before showing using PermissionManager
             if (permissionManager?.canDrawOverlays() != true) {
                 Log.e("OverlayDebug", "Overlay permission not granted - requesting permission")
-                uiCallback.showToast("Overlay permission required - please grant permission")
                 
                 // Request overlay permission using PermissionManager
                 permissionManager?.requestOverlayPermission()
@@ -467,7 +569,6 @@ class MainActivityHelper(
             startQRScanning()
         } else {
             Log.w(TAG, "Some QR permissions were denied")
-            uiCallback.showToast("Camera permission is required for QR scanning")
         }
     }
 
@@ -486,7 +587,6 @@ class MainActivityHelper(
                 Log.d(TAG, "Phone state listener registered after permission grant")
             }
         } else {
-            uiCallback.showToast("Some permissions were denied. App may not work properly.")
         }
         
         return success
@@ -521,7 +621,6 @@ class MainActivityHelper(
             }
         } else {
             Log.w(TAG, "Overlay permission denied")
-            uiCallback.showToast("Overlay permission is required for call protection")
             
             // Check for special device permissions (Xiaomi/MIUI)
             checkSpecialPermissions()

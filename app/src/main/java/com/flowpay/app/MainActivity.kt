@@ -193,6 +193,39 @@ class MainActivity : ComponentActivity() {
         helper.hideOverlay()
     }
     
+    /**
+     * Bring app to foreground and then show dialog
+     */
+    private fun bringAppToForegroundAndShowDialog(dialogCallback: () -> Unit) {
+        try {
+            Log.d(TAG, "Bringing app to foreground for dialog...")
+            
+            // Bring app to foreground
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                       Intent.FLAG_ACTIVITY_CLEAR_TOP or 
+                       Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                       Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT
+            }
+            startActivity(intent)
+            
+            // Small delay to ensure activity is brought to foreground, then show dialog
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                runOnUiThread {
+                    try {
+                        Log.d(TAG, "App in foreground, triggering dialog...")
+                        dialogCallback()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to show dialog: ${e.message}", e)
+                    }
+                }
+            }, 300) // Slightly longer delay to ensure smooth transition
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to bring app to foreground: ${e.message}", e)
+        }
+    }
+    
     private fun registerSMSReceiver() {
         try {
             smsReceiver = SimpleSMSReceiver()
@@ -366,22 +399,22 @@ class MainActivity : ComponentActivity() {
             }
             
             override fun showCallDurationIssueDialog() {
-                runOnUiThread {
-                    Log.d("MainActivity", "🚨 Requesting call duration dialog to be shown")
+                Log.d("MainActivity", "🚨 Showing call duration issue dialog")
+                bringAppToForegroundAndShowDialog {
                     showCallDurationDialogCallback?.invoke()
                 }
             }
             
             override fun showCallSuccessDialog() {
-                runOnUiThread {
-                    Log.d("MainActivity", "✅ Requesting call success dialog to be shown")
+                Log.d("MainActivity", "✅ Showing call success dialog")
+                bringAppToForegroundAndShowDialog {
                     showCallSuccessDialogCallback?.invoke()
                 }
             }
             
             override fun showCallTimeoutDialog() {
-                runOnUiThread {
-                    Log.d("MainActivity", "⏰ Requesting call timeout dialog to be shown")
+                Log.d("MainActivity", "⏰ Showing call timeout dialog")
+                bringAppToForegroundAndShowDialog {
                     showCallTimeoutDialogCallback?.invoke()
                 }
             }
@@ -452,27 +485,7 @@ class MainActivity : ComponentActivity() {
         // Handle all permissions through PermissionManager
         val success = helper.handlePermissionResult(requestCode, permissions, grantResults)
         
-        // Show appropriate feedback based on permission type
-        when (requestCode) {
-            PermissionConstants.SMS_PERMISSION_REQUEST_CODE -> {
-                if (success) {
-                    Toast.makeText(this, "SMS permissions granted", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(
-                        this,
-                        "SMS permission is required to detect payment confirmations",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-            PermissionConstants.PERMISSIONS_REQUEST_CODE -> {
-                if (success) {
-                    Toast.makeText(this, "All permissions granted", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Some permissions were denied", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        // Permission handling completed silently
     }
     
     
@@ -825,7 +838,7 @@ fun PaymentActionButtons(
             
             // Pay Contact Button Text
             Text(
-                text = "Pay Contact",
+                text = "Pay Anyone",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
@@ -2063,20 +2076,33 @@ fun CallTimeoutDialog(
         },
         text = {
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "The transaction request failed.",
+                    text = "The transaction request failed - call exceeded 40 seconds.",
                     color = Color(0xFFCCCCCC),
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "Please try again later.",
-                    color = Color(0xFFAAAAAA),
+                    text = "Likely reasons:",
+                    color = Color(0xFFCCCCCC),
                     fontSize = 14.sp,
                     lineHeight = 20.sp
+                )
+                Text(
+                    text = "• Invalid or incorrect number entered\n• Service temporarily unavailable\n• Network connectivity issues\n• Bank server not responding",
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+                Text(
+                    text = "Please verify the number and try again.",
+                    color = Color(0xFF4A9EFF),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         },

@@ -3,79 +3,130 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/dialog_background"
+    android:background="@drawable/modern_dialog_background"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:elevation="8dp"
+    android:padding="0dp">
 
-    <!-- Header with gradient background -->
+    <!-- Modern Header with Icon and Gradient -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="@drawable/dialog_header_background"
+        android:layout_height="wrap_content"
+        android:background="@drawable/modern_dialog_header_background"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="24dp">
 
+        <!-- Permission Icon -->
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/permission_icon_background"
+                android:src="@android:drawable/ic_dialog_alert"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                android:contentDescription="Permission icon" />
+
+        </FrameLayout>
+
+        <!-- Title -->
         <TextView
             android:id="@+id/tv_dialog_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Overlay Permission Required"
             android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.01"
+            android:gravity="center" />
+
+        <!-- Subtitle -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Secure Payment Protection"
+            android:textColor="#CCFFFFFF"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif"
+            android:gravity="center" />
 
     </LinearLayout>
 
-    <Space
-        android:layout_width="match_parent"
-        android:layout_height="20dp" />
-
-    <!-- Message text -->
-    <TextView
-        android:id="@+id/tv_dialog_message"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="FlowPay needs overlay permission to show payment protection dialogs during USSD calls.\n\nThis helps protect you from fraud by showing secure payment instructions.\n\nPlease grant overlay permission to continue."
-        android:textColor="@color/setup_text_secondary"
-        android:textSize="14sp"
-        android:lineSpacingExtra="4dp" />
-
-    <Space
-        android:layout_width="match_parent"
-        android:layout_height="24dp" />
-
-    <!-- Action buttons -->
+    <!-- Content Section -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        android:padding="24dp">
 
-        <!-- Cancel button -->
-        <Button
-            android:id="@+id/btn_cancel"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="6dp"
-            android:layout_weight="1"
-            android:background="@drawable/button_outline_background"
-            android:text="Cancel"
-            android:textColor="@color/setup_text_secondary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+        <!-- Main message with better typography -->
+        <TextView
+            android:id="@+id/tv_dialog_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="FlowPay needs overlay permission to show payment protection dialogs during USSD calls.\n\nThis helps protect you from fraud by showing secure payment instructions.\n\nPlease grant overlay permission to continue."
+            android:textColor="@color/text_primary"
+            android:textSize="15sp"
+            android:lineSpacingExtra="6dp"
+            android:lineSpacingMultiplier="1.4"
+            android:fontFamily="sans-serif"
+            android:gravity="start" />
 
-        <!-- Grant permission button -->
-        <Button
-            android:id="@+id/btn_grant_permission"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="6dp"
-            android:layout_weight="1"
-            android:background="@drawable/button_gradient_background"
-            android:text="Grant Permission"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+        <!-- Spacing -->
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="32dp" />
+
+        <!-- Modern Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <!-- Cancel button -->
+            <Button
+                android:id="@+id/btn_cancel"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/modern_button_secondary"
+                android:text="Cancel"
+                android:textColor="@color/text_secondary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.01"
+                android:minHeight="52dp"
+                android:gravity="center" />
+
+            <!-- Grant permission button -->
+            <Button
+                android:id="@+id/btn_grant_permission"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/modern_button_primary"
+                android:text="Grant Permission"
+                android:textColor="@color/white"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.01"
+                android:minHeight="52dp"
+                android:gravity="center" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

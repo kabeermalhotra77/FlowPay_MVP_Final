@@ -1012,30 +1012,14 @@ class CallOverlayService : Service() {
         // Hide overlay first
         hideOverlayInternal()
         
-        // Show appropriate dialog based on reason
-        when (reason) {
-            CallStateMonitor.CallEndReason.USER_CANCELLED -> {
-                Log.d(TAG, "User cancelled transaction")
-                dialogManager?.showTransactionCancelled()
-            }
-            CallStateMonitor.CallEndReason.CALL_COMPLETED -> {
-                Log.d(TAG, "Transaction completed successfully - NO DIALOG (user requested removal)")
-                // SUCCESS DIALOG REMOVED - User will wait for SMS confirmation
-            }
-            CallStateMonitor.CallEndReason.CALL_FAILED -> {
-                Log.d(TAG, "Transaction failed")
-                dialogManager?.showTransactionFailed()
-            }
-            CallStateMonitor.CallEndReason.SYSTEM_TERMINATED -> {
-                Log.d(TAG, "Call terminated by system")
-                dialogManager?.showSystemTerminated()
-            }
-        }
+        // For manual transfers, CallDurationMonitor handles ALL dialogs
+        // Don't show any dialogs from CallStateMonitor to avoid conflicts
+        Log.d(TAG, "Manual transfer - CallDurationMonitor will handle all dialogs, skipping CallStateMonitor dialogs")
         
-        // Stop service after showing dialog
+        // Stop service after hiding overlay
         Handler(Looper.getMainLooper()).postDelayed({
             stopSelf()
-        }, 1000) // Small delay to ensure dialog is shown
+        }, 500)
     }
     
     /**
@@ -1120,24 +1104,22 @@ class CallOverlayService : Service() {
             Log.d(TAG, "Hiding overlay...")
             hideOverlayInternal()
             
-            // Show cancellation dialog
-            Log.d(TAG, "Showing cancellation dialog...")
-            dialogManager?.showTransactionCancelledByUser()
+            // Don't show any dialog - user manually terminated
+            Log.d(TAG, "Call terminated by user - no dialog needed")
             
-            // Stop service after showing dialog
+            // Stop service
             Handler(Looper.getMainLooper()).postDelayed({
                 Log.d(TAG, "Stopping service...")
                 stopSelf()
-            }, 1000)
+            }, 500)
             
         } catch (e: Exception) {
             Log.e(TAG, "Error handling terminate call: ${e.message}", e)
-            // Still hide overlay and show dialog even if call termination fails
+            // Still hide overlay even if call termination fails
             hideOverlayInternal()
-            dialogManager?.showTransactionCancelledByUser()
             Handler(Looper.getMainLooper()).postDelayed({
                 stopSelf()
-            }, 1000)
+            }, 500)
         }
     }
     

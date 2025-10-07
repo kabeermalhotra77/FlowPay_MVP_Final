@@ -96,8 +96,32 @@ class SimpleSMSReceiver : BroadcastReceiver() {
             Log.d(TAG, "Status: ${result.status}")
             Log.d(TAG, "Transaction ID: ${result.transactionId}")
             
-            // For UPI 123, mute IMMEDIATELY before any other processing
+            // Check if this is a manual transfer operation and auto-end call
             val operationType = detector.getOperationType()
+            if (operationType == "UPI_123") {
+                Log.d(TAG, "=== SMS CONFIRMATION RECEIVED FOR MANUAL TRANSFER ===")
+                Log.d(TAG, "Attempting to end call automatically...")
+                
+                // Get CallManager and terminate call
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        val callManager = com.flowpay.app.managers.CallManager(context)
+                        val callEnded = callManager.terminateCall()
+                        
+                        if (callEnded) {
+                            Log.d(TAG, "✅ Call ended successfully after SMS confirmation")
+                            Toast.makeText(context, "Payment confirmed - Call ended", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Log.w(TAG, "⚠️ Could not end call automatically")
+                            Toast.makeText(context, "Payment confirmed - Please hang up", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "❌ Error ending call: ${e.message}", e)
+                    }
+                }
+            }
+            
+            // For UPI 123, mute IMMEDIATELY before any other processing
             if (operationType == "UPI_123") {
                 Log.d(TAG, "=== SMS RECEIVED FOR UPI_123 ===")
                 Log.d(TAG, "Current audio state - Muted: ${AudioStateManager.isCallAudioMuted()}")

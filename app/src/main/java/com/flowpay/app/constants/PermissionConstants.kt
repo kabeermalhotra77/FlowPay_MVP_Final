@@ -14,13 +14,15 @@ object PermissionConstants {
         Manifest.permission.MODIFY_AUDIO_SETTINGS,
         Manifest.permission.RECEIVE_SMS,
         Manifest.permission.READ_SMS,
-        Manifest.permission.VIBRATE
+        Manifest.permission.VIBRATE,
+        Manifest.permission.ANSWER_PHONE_CALLS
     )
     
     // Critical permissions that are absolutely necessary for core functionality
     val CRITICAL_PERMISSIONS = arrayOf(
         Manifest.permission.CALL_PHONE,
-        Manifest.permission.READ_PHONE_STATE
+        Manifest.permission.READ_PHONE_STATE,
+        Manifest.permission.ANSWER_PHONE_CALLS
     )
     
     // Optional permissions that enhance functionality but aren't critical
@@ -39,6 +41,7 @@ object PermissionConstants {
     const val CAMERA_PERMISSION_REQ_CODE = 0x1002
     const val SMS_PERMISSION_REQUEST_CODE = 0x1003
     const val CONTACTS_PERMISSION_REQUEST_CODE = 0x1004
+    const val ANSWER_PHONE_CALLS_REQUEST_CODE = 0x1005
     
     // Permission descriptions for user-friendly explanations
     val PERMISSION_DESCRIPTIONS = mapOf(
@@ -49,7 +52,8 @@ object PermissionConstants {
         Manifest.permission.RECEIVE_SMS to "Receive payment confirmation messages",
         Manifest.permission.READ_SMS to "Read payment-related messages",
         Manifest.permission.READ_CONTACTS to "Select contacts for easy transfers",
-        Manifest.permission.VIBRATE to "Provide haptic feedback for notifications"
+        Manifest.permission.VIBRATE to "Provide haptic feedback for notifications",
+        Manifest.permission.ANSWER_PHONE_CALLS to "End calls automatically after payment confirmation"
     )
     
     // Permission categories for better organization
@@ -70,6 +74,7 @@ object PermissionConstants {
         Manifest.permission.RECEIVE_SMS to PermissionCategory.MESSAGING,
         Manifest.permission.READ_SMS to PermissionCategory.MESSAGING,
         Manifest.permission.READ_CONTACTS to PermissionCategory.CONTACTS,
-        Manifest.permission.VIBRATE to PermissionCategory.SYSTEM
+        Manifest.permission.VIBRATE to PermissionCategory.SYSTEM,
+        Manifest.permission.ANSWER_PHONE_CALLS to PermissionCategory.PHONE
     )
 }

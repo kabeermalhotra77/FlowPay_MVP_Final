@@ -83,6 +83,15 @@ class TestConfigurationHelper(
         if (!permissionManager.checkAllPermissions()) {
             permissionManager.requestRequiredPermissions()
         }
+        
+        // Also check for ANSWER_PHONE_CALLS permission separately
+        // (Android may not show it in the main permission dialog)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            if (!permissionManager.hasAnswerPhoneCallsPermission()) {
+                Log.d(TAG, "ANSWER_PHONE_CALLS permission not granted, requesting separately")
+                permissionManager.requestAnswerPhoneCallsPermission()
+            }
+        }, 1000) // Delay to avoid conflicting with main permission dialog
     }
 
     /**
@@ -92,10 +101,8 @@ class TestConfigurationHelper(
         val success = permissionManager.handlePermissionResult(requestCode, permissions, grantResults)
         if (success) {
             Log.d(TAG, "All permissions granted")
-            uiCallback.showToast("Permissions granted! You can now test USSD")
         } else {
             Log.w(TAG, "Some permissions denied")
-            uiCallback.showToast("Some permissions were denied. App may not work properly.")
         }
         return success
     }
@@ -121,7 +128,6 @@ class TestConfigurationHelper(
         if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != 
             PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG, "CALL_PHONE permission not granted")
-            uiCallback.showToast("Phone call permission is required to test USSD")
             permissionManager.requestRequiredPermissions()
             if (callType == CallType.USSD) ussdTesting = false
             return
@@ -304,6 +310,13 @@ class TestConfigurationHelper(
             showUpi123Dialog = true
             uiCallback.updateUpi123Testing(true)
             uiCallback.updateUpi123Dialog(true)
+            
+            // Start SMS monitoring for UPI123 test
+            com.flowpay.app.helpers.TransactionDetector.getInstance(context).startOperation(
+                operationType = "UPI_123",
+                expectedAmount = "1.00",
+                phoneNumber = "08045163666"
+            )
             
             // Initiate UPI123 call - simple flow
             Log.d(TAG, "=== INITIATING UPI123 CALL ===")

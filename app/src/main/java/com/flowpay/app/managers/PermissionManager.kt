@@ -31,9 +31,13 @@ class PermissionManager(private val activity: Activity) {
      * Checks if all required permissions are granted
      */
     fun checkAllPermissions(): Boolean {
-        return PermissionConstants.REQUIRED_PERMISSIONS.all { permission ->
-            ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
+        val allGranted = PermissionConstants.REQUIRED_PERMISSIONS.all { permission ->
+            val isGranted = ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
+            Log.d(TAG, "Permission $permission: ${if (isGranted) "GRANTED" else "DENIED"}")
+            isGranted
         }
+        Log.d(TAG, "All permissions granted: $allGranted")
+        return allGranted
     }
     
     /**
@@ -68,6 +72,32 @@ class PermissionManager(private val activity: Activity) {
         }
     }
     
+    
+    /**
+     * Check if a specific permission is granted
+     */
+    fun isPermissionGranted(permission: String): Boolean {
+        val isGranted = ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
+        Log.d(TAG, "Permission $permission: ${if (isGranted) "GRANTED" else "DENIED"}")
+        return isGranted
+    }
+    
+    /**
+     * Request specific permissions
+     */
+    fun requestSpecificPermissions(permissions: List<String>) {
+        if (permissions.isEmpty()) {
+            Log.d(TAG, "No permissions to request")
+            return
+        }
+        
+        Log.d(TAG, "Requesting specific permissions: ${permissions.joinToString()}")
+        ActivityCompat.requestPermissions(
+            activity,
+            permissions.toTypedArray(),
+            PermissionConstants.PERMISSIONS_REQUEST_CODE
+        )
+    }
     
     /**
      * Requests overlay permission with custom styled dialog
@@ -111,12 +141,6 @@ class PermissionManager(private val activity: Activity) {
         dialog.show()
     }
     
-    /**
-     * Checks if a specific permission is granted
-     */
-    fun isPermissionGranted(permission: String): Boolean {
-        return ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
-    }
     
     
     /**
@@ -175,6 +199,17 @@ class PermissionManager(private val activity: Activity) {
                         grantResults[index] != PackageManager.PERMISSION_GRANTED
                     }
                     Log.w(TAG, "Denied SMS permissions: ${deniedPermissions.joinToString()}")
+                    return false
+                }
+            }
+            PermissionConstants.ANSWER_PHONE_CALLS_REQUEST_CODE -> {
+                val answerPhoneCallsGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+                
+                if (answerPhoneCallsGranted) {
+                    Log.d(TAG, "Answer phone calls permission granted")
+                    return true
+                } else {
+                    Log.w(TAG, "Answer phone calls permission denied")
                     return false
                 }
             }
@@ -269,6 +304,24 @@ class PermissionManager(private val activity: Activity) {
             activity,
             arrayOf(Manifest.permission.READ_CONTACTS),
             PermissionConstants.CONTACTS_PERMISSION_REQUEST_CODE
+        )
+    }
+    
+    /**
+     * Checks if answer phone calls permission is granted
+     */
+    fun hasAnswerPhoneCallsPermission(): Boolean {
+        return isPermissionGranted(Manifest.permission.ANSWER_PHONE_CALLS)
+    }
+    
+    /**
+     * Requests answer phone calls permission
+     */
+    fun requestAnswerPhoneCallsPermission() {
+        ActivityCompat.requestPermissions(
+            activity,
+            arrayOf(Manifest.permission.ANSWER_PHONE_CALLS),
+            PermissionConstants.ANSWER_PHONE_CALLS_REQUEST_CODE
         )
     }
 }

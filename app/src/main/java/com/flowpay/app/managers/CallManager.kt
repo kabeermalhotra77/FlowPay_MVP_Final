@@ -430,12 +430,10 @@ class CallManager(private val context: Context) {
                 true
             } else {
                 Log.e("OverlayDebug", "CALL_PHONE permission not granted")
-                Toast.makeText(context, "Phone call permission is required for manual payments. Please grant permission in Settings.", Toast.LENGTH_LONG).show()
                 false
             }
         } catch (e: SecurityException) {
             Log.e("OverlayDebug", "Security exception while initiating call: ${e.message}")
-            Toast.makeText(context, "Permission denied: ${e.message}", Toast.LENGTH_SHORT).show()
             false
         } catch (e: IllegalArgumentException) {
             Log.e("OverlayDebug", "Invalid argument while initiating call: ${e.message}")
@@ -504,7 +502,6 @@ class CallManager(private val context: Context) {
             
             } catch (e: SecurityException) {
                 Log.e(TAG, "Security exception while muting audio: ${e.message}")
-                Toast.makeText(context, "Permission required to control audio", Toast.LENGTH_SHORT).show()
                 false
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to mute call audio: ${e.message}")
@@ -571,7 +568,6 @@ class CallManager(private val context: Context) {
             
             } catch (e: SecurityException) {
                 Log.e(TAG, "Security exception while restoring audio: ${e.message}")
-                Toast.makeText(context, "Permission required to control audio", Toast.LENGTH_SHORT).show()
                 false
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to restore call audio: ${e.message}")

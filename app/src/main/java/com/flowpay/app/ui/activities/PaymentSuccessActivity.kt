@@ -141,13 +141,8 @@ class PaymentSuccessActivity : AppCompatActivity() {
             upiIdLayout.visibility = View.GONE
         }
         
-        // Set transaction type indicator color
-        val typeColor = if (transactionType == "CREDIT") {
-            ContextCompat.getColor(this, R.color.green)
-        } else {
-            ContextCompat.getColor(this, R.color.orange)
-        }
-        amountText.setTextColor(typeColor)
+        // Set amount color to green for all transactions
+        amountText.setTextColor(ContextCompat.getColor(this, R.color.green))
     }
     
     private fun formatAmount(amount: String): String {
