@@ -2,7 +2,9 @@
 package com.flowpay.app.ui.activities
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
@@ -118,6 +120,32 @@ class SettingsViewModel : androidx.lifecycle.ViewModel() {
             ussdCode = bank.ussdCode
         )
     }
+    
+    fun loadInitialState(context: Context) {
+        val prefs = context.getSharedPreferences("FlowPayPrefs", Context.MODE_PRIVATE)
+        val savedBankId = prefs.getString("selected_bank", "hdfc") ?: "hdfc"
+        val selectedBank = banks.find { it.id == savedBankId } ?: banks.first()
+        
+        state = state.copy(
+            selectedBank = selectedBank,
+            upiServiceNumber = selectedBank.upiNumber,
+            ussdCode = selectedBank.ussdCode
+        )
+    }
+    
+    fun saveSettings(context: Context) {
+        val prefs = context.getSharedPreferences("FlowPayPrefs", Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        editor.putString("selected_bank", state.selectedBank.id)
+        editor.putString("upi_service_number", state.upiServiceNumber)
+        editor.putString("ussd_code", state.ussdCode)
+        editor.putInt("ussd_timeout", state.ussdTimeout)
+        editor.putBoolean("sms_detection_enabled", state.smsDetectionEnabled)
+        editor.putBoolean("overlay_enabled", state.overlayEnabled)
+        editor.putBoolean("notifications_enabled", state.notificationsEnabled)
+        editor.putBoolean("debug_mode", state.debugMode)
+        editor.apply()
+    }
 
     fun updateUpiNumber(number: String) {
         state = state.copy(upiServiceNumber = number)
@@ -159,8 +187,11 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var showSaveIndicator by remember { mutableStateOf(false) }
 
-    // Permission checker
+    // Load initial state and check permissions
     LaunchedEffect(Unit) {
+        // Load the current bank selection from SharedPreferences
+        viewModel.loadInitialState(context)
+        
         val permissions = mapOf(
             Manifest.permission.CALL_PHONE to (ContextCompat.checkSelfPermission(
                 context, Manifest.permission.CALL_PHONE
@@ -268,6 +299,8 @@ fun SettingsScreen(
                                 TextButton(
                                     onClick = {
                                         scope.launch {
+                                            // Actually save the settings
+                                            viewModel.saveSettings(context)
                                             showSaveIndicator = true
                                             delay(2000)
                                             showSaveIndicator = false

@@ -160,6 +160,10 @@ class MainActivity : ComponentActivity() {
         @Volatile
         var showCallTimeoutDialogCallback: (() -> Unit)? = null
         @Volatile
+        var showQRUnavailableDialogCallback: (() -> Unit)? = null
+        @Volatile
+        var showUPI123UnavailableDialogCallback: (() -> Unit)? = null
+        @Volatile
         var resetQRScanningStateCallback: (() -> Unit)? = null
     }
 
@@ -416,6 +420,20 @@ class MainActivity : ComponentActivity() {
                 Log.d("MainActivity", "⏰ Showing call timeout dialog")
                 bringAppToForegroundAndShowDialog {
                     showCallTimeoutDialogCallback?.invoke()
+                }
+            }
+            
+            override fun showQRUnavailableDialog() {
+                Log.d("MainActivity", "🚫 Showing QR unavailable dialog")
+                bringAppToForegroundAndShowDialog {
+                    showQRUnavailableDialogCallback?.invoke()
+                }
+            }
+            
+            override fun showUPI123UnavailableDialog() {
+                Log.d("MainActivity", "🚫 Showing UPI123 unavailable dialog")
+                bringAppToForegroundAndShowDialog {
+                    showUPI123UnavailableDialogCallback?.invoke()
                 }
             }
         })
@@ -881,6 +899,8 @@ fun MainScreen(
     var showCallDurationDialog by remember { mutableStateOf(false) }
     var showCallSuccessDialog by remember { mutableStateOf(false) }
     var showCallTimeoutDialog by remember { mutableStateOf(false) }
+    var showQRUnavailableDialog by remember { mutableStateOf(false) }
+    var showUPI123UnavailableDialog by remember { mutableStateOf(false) }
     var selectedPayment by remember { mutableStateOf<PaymentDetails?>(null) }
     
     
@@ -909,6 +929,22 @@ fun MainScreen(
         MainActivity.showCallTimeoutDialogCallback = {
             showCallTimeoutDialog = true
             Log.d("MainActivity", "⏰ Call timeout dialog state set to true")
+        }
+    }
+    
+    // Set up callback for QR unavailable dialog
+    LaunchedEffect(Unit) {
+        MainActivity.showQRUnavailableDialogCallback = {
+            showQRUnavailableDialog = true
+            Log.d("MainActivity", "🚫 QR unavailable dialog state set to true")
+        }
+    }
+    
+    // Set up callback for UPI123 unavailable dialog
+    LaunchedEffect(Unit) {
+        MainActivity.showUPI123UnavailableDialogCallback = {
+            showUPI123UnavailableDialog = true
+            Log.d("MainActivity", "🚫 UPI123 unavailable dialog state set to true")
         }
     }
     
@@ -1492,6 +1528,18 @@ fun MainScreen(
             if (showCallTimeoutDialog) {
                 CallTimeoutDialog(
                     onDismiss = { showCallTimeoutDialog = false }
+                )
+            }
+
+            if (showQRUnavailableDialog) {
+                QRUnavailableDialog(
+                    onDismiss = { showQRUnavailableDialog = false }
+                )
+            }
+
+            if (showUPI123UnavailableDialog) {
+                UPI123UnavailableDialog(
+                    onDismiss = { showUPI123UnavailableDialog = false }
                 )
             }
 
@@ -2099,6 +2147,134 @@ fun CallTimeoutDialog(
                 )
                 Text(
                     text = "Please verify the number and try again.",
+                    color = Color(0xFF4A9EFF),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = Color(0xFF4A9EFF)
+                )
+            ) {
+                Text(
+                    text = "OK",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun QRUnavailableDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1A1A),
+        title = { 
+            Text(
+                text = "QR Scan Not Available",
+                color = Color(0xFFFFA726),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            ) 
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "*99# is not set up. Currently this feature is not available for you.",
+                    color = Color(0xFFCCCCCC),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "To use QR scanning:",
+                    color = Color(0xFFCCCCCC),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+                Text(
+                    text = "• Complete the *99# setup in Test Configuration\n• This enables pay via scanning payments\n• You can access Test Configuration from Settings",
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+                Text(
+                    text = "For now, you can use manual payment entry instead.",
+                    color = Color(0xFF4A9EFF),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = Color(0xFF4A9EFF)
+                )
+            ) {
+                Text(
+                    text = "OK",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun UPI123UnavailableDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1A1A),
+        title = { 
+            Text(
+                text = "Manual Payment Not Available",
+                color = Color(0xFFFFA726),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            ) 
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "UPI123 is not set up. Currently this feature is not available for you.",
+                    color = Color(0xFFCCCCCC),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "To use manual payment entry:",
+                    color = Color(0xFFCCCCCC),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+                Text(
+                    text = "• Complete the UPI123 setup in Test Configuration\n• This enables manual payment entries\n• You can access Test Configuration from Settings",
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+                Text(
+                    text = "For now, you can use QR scanning instead (if *99# is set up).",
                     color = Color(0xFF4A9EFF),
                     fontSize = 13.sp,
                     lineHeight = 18.sp,

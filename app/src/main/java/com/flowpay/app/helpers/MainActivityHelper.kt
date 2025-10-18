@@ -29,6 +29,7 @@ import com.flowpay.app.states.PaymentState
 import com.flowpay.app.SetupActivity
 import com.flowpay.app.TestConfigurationActivity
 import com.flowpay.app.constants.AppConstants
+import com.flowpay.app.data.TestResultsManager
 
 /**
  * Helper class containing all business logic for MainActivity
@@ -46,6 +47,7 @@ class MainActivityHelper(
     private var callManager: CallManager? = null
     private var permissionManager: PermissionManager? = null
     private var callDurationMonitor: CallDurationMonitor? = null
+    private var testResultsManager: TestResultsManager? = null
     
     // Permission request tracking
     private var isRequestingPermissions = false
@@ -96,6 +98,8 @@ class MainActivityHelper(
         fun showCallDurationIssueDialog()
         fun showCallSuccessDialog()
         fun showCallTimeoutDialog()
+        fun showQRUnavailableDialog()
+        fun showUPI123UnavailableDialog()
     }
     
     
@@ -131,6 +135,22 @@ class MainActivityHelper(
     }
     
     /**
+     * Check if USSD (*99#) is set up for QR scanning
+     */
+    private fun isUssdSetupCompleted(): Boolean {
+        val testResults = testResultsManager?.getTestResults()
+        return testResults?.ussdEnabled == true
+    }
+    
+    /**
+     * Check if UPI123 is set up for manual payment entry
+     */
+    private fun isUpi123SetupCompleted(): Boolean {
+        val testResults = testResultsManager?.getTestResults()
+        return testResults?.upi123Enabled == true
+    }
+    
+    /**
      * Start QR scanning - public method for UI access
      * @param isFromPermissionGrant true if called after permission grant, false if initiated by user
      */
@@ -141,6 +161,13 @@ class MainActivityHelper(
         // The form state restoration will handle showing the PayContactDialog
         if (isFromPermissionGrant) {
             Log.d(TAG, "Called after permission grant, not opening QR scanner")
+            return
+        }
+        
+        // Check if USSD (*99#) is set up first
+        if (!isUssdSetupCompleted()) {
+            Log.d(TAG, "USSD (*99#) not set up, showing QR unavailable dialog")
+            uiCallback.showQRUnavailableDialog()
             return
         }
         
@@ -303,6 +330,7 @@ class MainActivityHelper(
             callManager = CallManager(context)
             permissionManager = PermissionManager(context as Activity)
             callDurationMonitor = CallDurationMonitor(context)
+            testResultsManager = TestResultsManager(context)
             
             // Initialize call duration monitor for manual transfers
             Log.d("MainActivityHelper", "🟢 Initializing CallDurationMonitor...")
@@ -419,6 +447,13 @@ class MainActivityHelper(
      */
     fun initiateTransfer(phoneNumber: String, amount: String) {
         Log.d(TAG, "Initiating transfer - Phone: $phoneNumber, Amount: $amount")
+        
+        // Check if UPI123 is set up first
+        if (!isUpi123SetupCompleted()) {
+            Log.d(TAG, "UPI123 not set up, showing UPI123 unavailable dialog")
+            uiCallback.showUPI123UnavailableDialog()
+            return
+        }
         
         // Validate input
         if (phoneNumber.isNullOrBlank() || amount.isNullOrBlank()) {
