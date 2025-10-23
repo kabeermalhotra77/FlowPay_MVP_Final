@@ -44,3 +44,5 @@ echo "7. Go back to main screen and tap 'Scan QR Code' button"
 echo "8. Verify that QR scanner opens (if permissions granted)"
 echo ""
 echo "✅ Test completed - check the app behavior manually"
+
+
