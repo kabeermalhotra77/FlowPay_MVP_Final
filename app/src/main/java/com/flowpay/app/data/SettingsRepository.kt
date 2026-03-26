@@ -22,21 +22,20 @@ class SettingsRepository(private val context: Context) {
     data class SavedSettings(
         val bankId: String = "hdfc",
         val upiServiceNumber: String = "08045163666",
-        val ussdCode: String = "*99*1*3#",
         val ussdTimeout: Int = 30,
         val smsDetectionEnabled: Boolean = true,
         val overlayEnabled: Boolean = true,
         val notificationsEnabled: Boolean = true,
         val debugMode: Boolean = false,
         val setupCompleted: Boolean = false,
-        val testConfigCompleted: Boolean = false
+        val testConfigCompleted: Boolean = false,
+        val accentTheme: String = "blue"
     )
     
     fun saveSettings(settings: SavedSettings) {
         prefs.edit {
             putString("bank_id", settings.bankId)
             putString("upi_service_number", settings.upiServiceNumber)
-            putString("ussd_code", settings.ussdCode)
             putInt("ussd_timeout", settings.ussdTimeout)
             putBoolean("sms_detection_enabled", settings.smsDetectionEnabled)
             putBoolean("overlay_enabled", settings.overlayEnabled)
@@ -44,6 +43,7 @@ class SettingsRepository(private val context: Context) {
             putBoolean("debug_mode", settings.debugMode)
             putBoolean("setup_completed", settings.setupCompleted)
             putBoolean("test_config_completed", settings.testConfigCompleted)
+            putString("accent_theme", settings.accentTheme)
         }
         _settingsFlow.value = settings
     }
@@ -52,14 +52,14 @@ class SettingsRepository(private val context: Context) {
         return SavedSettings(
             bankId = prefs.getString("bank_id", "hdfc") ?: "hdfc",
             upiServiceNumber = prefs.getString("upi_service_number", "08045163666") ?: "08045163666",
-            ussdCode = prefs.getString("ussd_code", "*99*1*3#") ?: "*99*1*3#",
             ussdTimeout = prefs.getInt("ussd_timeout", 30),
             smsDetectionEnabled = prefs.getBoolean("sms_detection_enabled", true),
             overlayEnabled = prefs.getBoolean("overlay_enabled", true),
             notificationsEnabled = prefs.getBoolean("notifications_enabled", true),
             debugMode = prefs.getBoolean("debug_mode", false),
             setupCompleted = prefs.getBoolean("setup_completed", false),
-            testConfigCompleted = prefs.getBoolean("test_config_completed", false)
+            testConfigCompleted = prefs.getBoolean("test_config_completed", false),
+            accentTheme = prefs.getString("accent_theme", "blue") ?: "blue"
         )
     }
     

@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.flowpay.app.ui.theme.LocalFlowPayAccentTheme
 
 @Composable
 fun USSDTimeoutDialog(
@@ -123,7 +124,7 @@ fun USSDTimeoutDialog(
                             .height(50.dp),
                         shape = RoundedCornerShape(15.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4A90E2)
+                            containerColor = LocalFlowPayAccentTheme.current.accent
                         )
                     ) {
                         Text(

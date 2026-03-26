@@ -11,13 +11,13 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,12 +88,18 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.runtime.CompositionLocalProvider
+import com.flowpay.app.data.SettingsRepository
+import com.flowpay.app.ui.theme.BlueAccentTheme
+import com.flowpay.app.ui.theme.LocalFlowPayAccentTheme
+import com.flowpay.app.ui.theme.RedAccentTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
@@ -119,6 +125,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.flowpay.app.ui.theme.FlowPayTheme
 import com.flowpay.app.helpers.MainActivityHelper
 import com.flowpay.app.helpers.SMSPermissionHelper
@@ -134,7 +144,14 @@ import com.flowpay.app.ui.activities.SettingsActivity
 import com.flowpay.app.ui.dialogs.Contact
 import com.flowpay.app.ui.dialogs.ContactPickerDialog
 import com.flowpay.app.managers.PermissionManager
+import com.flowpay.app.glasses.GlassesSessionManager
+import com.flowpay.app.glasses.GlassesSessionState
+import com.flowpay.app.glasses.userMessageForPermissionFailure
 import com.flowpay.app.utils.TestTransactionGenerator
+import com.flowpay.app.utils.findComponentActivity
+import com.meta.wearable.dat.core.Wearables
+import com.meta.wearable.dat.core.types.Permission
+import com.meta.wearable.dat.core.types.PermissionStatus
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.content.IntentFilter
 import android.provider.Telephony
@@ -154,6 +171,8 @@ class MainActivity : ComponentActivity() {
         var dismissCallSuccessDialogCallback: (() -> Unit)? = null
         @Volatile
         var resetQRScanningStateCallback: (() -> Unit)? = null
+        @Volatile
+        var showOverlayPermissionDialogCallback: (() -> Unit)? = null
     }
 
     // Helper for all business logic
@@ -167,6 +186,29 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         helper.handleQRPermissionResult(permissions)
+    }
+
+    private val requestGlassesCameraLauncher = registerForActivityResult(
+        Wearables.RequestPermissionContract()
+    ) { result ->
+        result.getOrNull()?.let { status ->
+            if (status == PermissionStatus.Granted) {
+                Log.d(TAG, "Glasses camera permission granted")
+                Toast.makeText(this, "Glasses camera allowed. Say flow pay or tap the card to retry.", Toast.LENGTH_SHORT).show()
+                com.flowpay.app.services.GlassesSessionService.instance?.startStreamAfterPermissionGranted(this)
+            } else {
+                Log.d(TAG, "Glasses camera permission denied or not granted")
+                Toast.makeText(this, "Camera not allowed. You can grant it later in Meta AI (Glasses → App permissions).", Toast.LENGTH_SHORT).show()
+            }
+        } ?: run {
+            val message = userMessageForPermissionFailure(result.exceptionOrNull())
+            Log.w(TAG, "Glasses camera permission request failed: $message")
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun requestGlassesCameraPermission() {
+        requestGlassesCameraLauncher.launch(Permission.CAMERA)
     }
     
     // UI Callback implementations
@@ -227,8 +269,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         // IMMEDIATE theme transition from splash to main theme
-        setTheme(R.style.Theme_FlowPay)
-        Log.d(TAG, "Theme set to Theme_FlowPay")
+        val app = application as? FlowPayApplication
+        val settingsRepository = app?.settingsRepository ?: SettingsRepository(applicationContext)
+        val accentTheme = settingsRepository.settingsFlow.value.accentTheme
+        setTheme(
+            if (accentTheme == "red") R.style.Theme_FlowPay_Red
+            else R.style.Theme_FlowPay
+        )
+        Log.d(TAG, "Theme set to ${if (accentTheme == "red") "Theme_FlowPay_Red" else "Theme_FlowPay"}")
         
         // IMMEDIATE black setup - set before ANYTHING else
         window.statusBarColor = android.graphics.Color.BLACK
@@ -368,16 +416,17 @@ class MainActivity : ComponentActivity() {
                     showCallSuccessDialogCallback?.invoke()
                 }
             }
+
+            override fun showOverlayPermissionExplanation() {
+                runOnUiThread {
+                    Log.d("MainActivity", "Requesting overlay permission explanation dialog")
+                    showOverlayPermissionDialogCallback?.invoke()
+                }
+            }
         })
         
         // Initialize helper
         helper.initialize()
-        
-        // Check SMS permissions specifically using PermissionManager
-        if (!helper.checkSMSPermissions()) {
-            helper.requestSMSPermissions()
-        }
-        
         // Register SMS receiver
         registerSMSReceiver()
         
@@ -393,18 +442,22 @@ class MainActivity : ComponentActivity() {
         }
         
         setContent {
-            FlowPayTheme {
-                MainScreen(
-                    onInitiateTransfer = { phoneNumber, amount ->
-                        helper.initiateTransfer(phoneNumber, amount)
-                    },
-                    onQRScanClick = {
-                        helper.startQRScanning()
-                    }
-                )
+            val accent = if (accentTheme == "red") RedAccentTheme else BlueAccentTheme
+            CompositionLocalProvider(LocalFlowPayAccentTheme provides accent) {
+                FlowPayTheme {
+                    MainScreen(
+                        onInitiateTransfer = { phoneNumber, amount ->
+                            helper.initiateTransfer(phoneNumber, amount)
+                        },
+                        onQRScanClick = {
+                            helper.startQRScanning()
+                        }
+                    )
+                }
             }
         }
     }
+
     
     
     
@@ -433,6 +486,19 @@ class MainActivity : ComponentActivity() {
         
         // Show appropriate feedback based on permission type
         when (requestCode) {
+            PermissionConstants.GLASSES_PERMISSION_REQUEST_CODE -> {
+                if (success) {
+                    // Permissions granted — check local flag to decide next step
+                    val prefs = getSharedPreferences(AppConstants.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                    val setupStarted = prefs.getBoolean(AppConstants.KEY_GLASSES_SETUP_STARTED, false)
+                    if (setupStarted) {
+                        GlassesSessionManager.startSession(this)
+                    } else {
+                        GlassesSessionManager.startRegistration(this)
+                    }
+                }
+                // No toast either way — silent for glasses
+            }
             PermissionConstants.SMS_PERMISSION_REQUEST_CODE -> {
                 if (success) {
                     Toast.makeText(this, "SMS permissions granted", Toast.LENGTH_SHORT).show()
@@ -458,11 +524,13 @@ class MainActivity : ComponentActivity() {
     // Lifecycle methods - delegate to helper
     override fun onPause() {
         super.onPause()
+        com.flowpay.app.services.GlassesSessionService.instance?.setCurrentActivity(null)
         helper.onPause()
     }
     
     override fun onResume() {
         super.onResume()
+        com.flowpay.app.services.GlassesSessionService.instance?.setCurrentActivity(this)
         helper.onResume()
         
         // Ensure status bar stays black
@@ -646,15 +714,15 @@ fun PaymentActionButtons(
                     .shadow(
                         elevation = 12.dp,
                         shape = CircleShape,
-                        ambientColor = Color(0xFF7BA8F5).copy(alpha = 0.3f),
-                        spotColor = Color(0xFF6A96EE).copy(alpha = 0.4f)
+                        ambientColor = LocalFlowPayAccentTheme.current.headerGradientStart.copy(alpha = 0.3f),
+                        spotColor = LocalFlowPayAccentTheme.current.headerGradientEnd.copy(alpha = 0.4f)
                     )
                     .scale(qrButtonScale)
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                Color(0xFF7BA8F5), // Header blue - top
-                                Color(0xFF6A96EE)  // Header blue - bottom
+                                LocalFlowPayAccentTheme.current.headerGradientStart, // Header - top
+                                LocalFlowPayAccentTheme.current.headerGradientEnd  // Header - bottom
                             ),
                             start = Offset(0f, 0f),
                             end = Offset(1f, 1f)
@@ -760,15 +828,15 @@ fun PaymentActionButtons(
                     .shadow(
                         elevation = 12.dp,
                         shape = RoundedCornerShape(20.dp),
-                        ambientColor = Color(0xFF7BA8F5).copy(alpha = 0.3f),
-                        spotColor = Color(0xFF6A96EE).copy(alpha = 0.4f)
+                        ambientColor = LocalFlowPayAccentTheme.current.headerGradientStart.copy(alpha = 0.3f),
+                        spotColor = LocalFlowPayAccentTheme.current.headerGradientEnd.copy(alpha = 0.4f)
                     )
                     .scale(payButtonScale)
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                Color(0xFF7BA8F5), // Header blue - top
-                                Color(0xFF6A96EE)  // Header blue - bottom
+                                LocalFlowPayAccentTheme.current.headerGradientStart, // Header - top
+                                LocalFlowPayAccentTheme.current.headerGradientEnd  // Header - bottom
                             ),
                             start = Offset(0f, 0f),
                             end = Offset(1f, 1f)
@@ -830,7 +898,26 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
-    val savedBank = sharedPreferences.getString(AppConstants.KEY_SELECTED_BANK, "hdfc") ?: "hdfc"
+
+    // Re-read bank from prefs every time the screen resumes (e.g. returning from Settings)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var savedBank by remember { mutableStateOf(sharedPreferences.getString(AppConstants.KEY_SELECTED_BANK, "hdfc") ?: "hdfc") }
+
+    // Glasses setup flag — read directly from SharedPrefs (instant, no SDK calls)
+    // Set to true the moment user taps "Connect" in the setup dialog
+    var isGlassesSetupStarted by remember {
+        mutableStateOf(sharedPreferences.getBoolean(AppConstants.KEY_GLASSES_SETUP_STARTED, false))
+    }
+
+    LaunchedEffect(lifecycle) {
+        snapshotFlow { lifecycle.currentState }
+            .collect { state ->
+                if (state == Lifecycle.State.RESUMED) {
+                    savedBank = sharedPreferences.getString(AppConstants.KEY_SELECTED_BANK, "hdfc") ?: "hdfc"
+                    isGlassesSetupStarted = sharedPreferences.getBoolean(AppConstants.KEY_GLASSES_SETUP_STARTED, false)
+                }
+            }
+    }
     
     // Initialize ViewModel
     val transactionViewModel: TransactionViewModel = viewModel()
@@ -843,11 +930,22 @@ fun MainScreen(
     var showPayContact by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var isScanning by remember { mutableStateOf(false) }
+    var showGlassesSetupDialog by remember { mutableStateOf(false) }
     var showCallDurationDialog by remember { mutableStateOf(false) }
     var showCallSuccessDialog by remember { mutableStateOf(false) }
-    
-    
-    // Set up callback for call duration dialog
+    var hasProactivelyRequestedCamera by remember { mutableStateOf(false) }
+
+    // Permission dialog states
+    var showSmsPermissionDialog by remember { mutableStateOf(false) }
+    var pendingSmsAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var showOverlayPermissionDialog by remember { mutableStateOf(false) }
+    val hostActivity = remember(context) { context.findComponentActivity() }
+    val permissionManager = remember(hostActivity) {
+        hostActivity?.let { PermissionManager(it) }
+    }
+
+    val glassesState by GlassesSessionManager.state.collectAsState()
+    var previousGlassesState by remember { mutableStateOf(glassesState) }
     LaunchedEffect(Unit) {
         MainActivity.showCallDurationDialogCallback = {
             showCallDurationDialog = true
@@ -874,9 +972,15 @@ fun MainScreen(
             Log.d("MainActivity", "✅ QR scanning state reset to false via callback")
         }
     }
+
+    // Set up callback for overlay permission explanation dialog
+    LaunchedEffect(Unit) {
+        MainActivity.showOverlayPermissionDialogCallback = {
+            showOverlayPermissionDialog = true
+        }
+    }
     
     // Reset scanning state when app becomes visible (QR scanner finished)
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle) {
         snapshotFlow { lifecycle.currentState }
             .collect { state ->
@@ -926,6 +1030,31 @@ fun MainScreen(
             Log.d("FlowPay", "Force reset isScanning to false - ultimate safety")
         }
     }
+
+    LaunchedEffect(glassesState) {
+        if (glassesState is GlassesSessionState.Connected && !GlassesSessionManager.hasCameraPermission() && !hasProactivelyRequestedCamera) {
+            hasProactivelyRequestedCamera = true
+            (context as? MainActivity)?.requestGlassesCameraPermission()
+        }
+        if (glassesState is GlassesSessionState.Idle) {
+            hasProactivelyRequestedCamera = false
+        }
+    }
+    LaunchedEffect(glassesState) {
+        when {
+            glassesState is GlassesSessionState.Connected && previousGlassesState is GlassesSessionState.Connecting ->
+                Toast.makeText(context, "Glasses connected.", Toast.LENGTH_SHORT).show()
+            glassesState is GlassesSessionState.Scanning && (previousGlassesState is GlassesSessionState.Listening || previousGlassesState is GlassesSessionState.Connected) ->
+                Toast.makeText(context, "Scanning for QR...", Toast.LENGTH_SHORT).show()
+            glassesState is GlassesSessionState.PaymentReady && previousGlassesState is GlassesSessionState.Scanning ->
+                Toast.makeText(context, "QR scanned!", Toast.LENGTH_SHORT).show()
+            glassesState is GlassesSessionState.Idle && previousGlassesState.isActive() ->
+                Toast.makeText(context, "Glasses disconnected.", Toast.LENGTH_SHORT).show()
+            glassesState is GlassesSessionState.Error ->
+                Toast.makeText(context, "Couldn't reach glasses. Make sure they're on and connected via Meta AI.", Toast.LENGTH_LONG).show()
+        }
+        previousGlassesState = glassesState
+    }
     
     val selectedBankName = when (savedBank) {
         "sbi" -> "State Bank of India"
@@ -946,7 +1075,8 @@ fun MainScreen(
     
     // Theme colors - Updated for the blue header design
     val backgroundColor = Color(0xFF0A0A0A) // Keep your dark background
-    val primaryColor = Color(0xFF5B8DEF) // Main blue color
+    val accent = LocalFlowPayAccentTheme.current
+    val primaryColor = accent.primary
     val primaryForegroundColor = Color.White
     val cardColor = Color(0xFF1F1F1F) // For other cards in dark theme
     val borderColor = Color(0xFF404040)
@@ -999,8 +1129,8 @@ fun MainScreen(
                             .background(
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
-                                        Color(0xFF7BA8F5), // Lighter, softer blue (top) - matches screenshot
-                                        Color(0xFF6A96EE)  // Lighter blue with slight depth (bottom)
+                                        LocalFlowPayAccentTheme.current.headerGradientStart, // Lighter (top)
+                                        LocalFlowPayAccentTheme.current.headerGradientEnd  // Lighter (bottom)
                                     )
                                 ),
                                 shape = RoundedCornerShape(20.dp)
@@ -1024,7 +1154,7 @@ fun MainScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
-                                    text = "FlowPay",
+                                    text = "Flowpay",
                                     fontSize = 24.sp, // Larger, more prominent
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
@@ -1054,6 +1184,81 @@ fun MainScreen(
                                 )
                             }
                             
+                            // Glasses Button - premium look when on (shadow, gradient), connection Toasts handled in LaunchedEffect
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 8.dp, end = 4.dp)
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .then(
+                                        if (glassesState.isActive())
+                                            Modifier.shadow(
+                                                elevation = 6.dp,
+                                                shape = CircleShape,
+                                                ambientColor = accent.primary.copy(alpha = 0.35f),
+                                                spotColor = accent.primaryDark.copy(alpha = 0.4f)
+                                            )
+                                        else Modifier
+                                    )
+                                    .then(
+                                        if (glassesState.isActive())
+                                            Modifier.background(
+                                                brush = Brush.verticalGradient(
+                                                    colors = listOf(accent.headerGradientEnd, accent.primary)
+                                                ),
+                                                shape = CircleShape
+                                            )
+                                        else Modifier.background(Color.White.copy(alpha = 0.22f), CircleShape)
+                                    )
+                                    .then(
+                                        if (glassesState.isActive())
+                                            Modifier.border(1.5.dp, accent.accentLight, CircleShape)
+                                        else Modifier
+                                    )
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) {
+                                        if (glassesState.isActive()) {
+                                            GlassesSessionManager.stopSession(context)
+                                        } else if (!isGlassesSetupStarted) {
+                                            // First time — show setup dialog
+                                            showGlassesSetupDialog = true
+                                        } else {
+                                            // Already set up — check BT before starting
+                                            val btManager = context.getSystemService(android.content.Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
+                                            val glassesNames = listOf("RBM", "Ray-Ban", "Ray Ban", "Meta", "Oakley", "Stories")
+                                            val glassyPaired = try {
+                                                btManager?.adapter?.bondedDevices?.any { d ->
+                                                    glassesNames.any { (d.name ?: "").contains(it, ignoreCase = true) }
+                                                } == true
+                                            } catch (e: SecurityException) { false }
+                                            if (!glassyPaired) {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    "Connect your Meta glasses via Bluetooth first",
+                                                    android.widget.Toast.LENGTH_LONG
+                                                ).show()
+                                            } else {
+                                                val activity = context as? android.app.Activity ?: return@clickable
+                                                val pm = PermissionManager(activity)
+                                                if (!pm.checkGlassesPermissions()) {
+                                                    pm.requestGlassesPermissions()
+                                                } else {
+                                                    GlassesSessionManager.startSession(context)
+                                                }
+                                            }
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_glasses),
+                                    contentDescription = "Smart Glasses",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                             // Settings Button - Clean modern style with spec dimensions
                             Box(
                                 modifier = Modifier
@@ -1063,7 +1268,10 @@ fun MainScreen(
                                     .background(
                                         Color.White.copy(alpha = 0.22f)
                                     )
-                                    .clickable { 
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) { 
                                         val intent = Intent(context, SettingsActivity::class.java)
                                         context.startActivity(intent)
                                     },
@@ -1087,9 +1295,12 @@ fun MainScreen(
                                 .height(80.dp) // Taller for proper spacing
                                 .clip(RoundedCornerShape(16.dp)) // More rounded to match header
                                 .background(
-                                    Color(0xFF6A9AE8) // Original lighter blue matching the gradient
+                                    LocalFlowPayAccentTheme.current.headerGradientEnd // Lighter blue matching the gradient
                                 )
-                                .clickable { 
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { 
                                     Log.d("FlowPay", "Bank card clicked")
                                 }
                                 .padding(horizontal = 18.dp, vertical = 14.dp)
@@ -1162,8 +1373,16 @@ fun MainScreen(
                 PaymentActionButtons(
                     onQRScanClick = {
                         Log.d("FlowPay", "QR scan button clicked")
-                        isScanning = true
-                        onQRScanClick()
+                        if (permissionManager?.checkSMSPermissions() != true) {
+                            pendingSmsAction = {
+                                isScanning = true
+                                onQRScanClick()
+                            }
+                            showSmsPermissionDialog = true
+                        } else {
+                            isScanning = true
+                            onQRScanClick()
+                        }
                     },
                     onPayContactClick = {
                         showPayContact = true
@@ -1211,7 +1430,7 @@ fun MainScreen(
                                         imageVector = Icons.Default.History,
                                         contentDescription = "History",
                                         modifier = Modifier.size(20.dp),
-                                        tint = Color(0xFF7BA8F5) // Header blue color
+                                        tint = LocalFlowPayAccentTheme.current.headerGradientStart // Header color
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -1240,7 +1459,7 @@ fun MainScreen(
                                 Text(
                                     text = "View All",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF4A90E2) // Accent color
+                                    color = LocalFlowPayAccentTheme.current.accent // Accent color
                                 )
                             }
                         }
@@ -1259,7 +1478,7 @@ fun MainScreen(
                                 ) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(32.dp),
-                                        color = Color(0xFF7BA8F5), // Match header blue
+                                        color = LocalFlowPayAccentTheme.current.headerGradientStart, // Match header
                                         strokeWidth = 3.dp
                                     )
                                     Spacer(modifier = Modifier.height(20.dp))
@@ -1289,7 +1508,7 @@ fun MainScreen(
                                             )
                                             .border(
                                                 width = 0.8.dp,
-                                                color = Color(0xFF7BA8F5).copy(alpha = 0.25f),
+                                                color = LocalFlowPayAccentTheme.current.headerGradientStart.copy(alpha = 0.25f),
                                                 shape = CircleShape
                                             ),
                                         contentAlignment = Alignment.Center
@@ -1323,7 +1542,7 @@ fun MainScreen(
                                             text = "Retry",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF7BA8F5)
+                                            color = LocalFlowPayAccentTheme.current.headerGradientStart
                                         )
                                     }
                                 }
@@ -1394,8 +1613,16 @@ fun MainScreen(
                 PayContactDialog(
                     onDismiss = { showPayContact = false },
                     onConfirm = { phone, amt ->
-                        showPayContact = false
-                        onInitiateTransfer(phone, amt)
+                        if (permissionManager?.checkSMSPermissions() != true) {
+                            pendingSmsAction = {
+                                showPayContact = false
+                                onInitiateTransfer(phone, amt)
+                            }
+                            showSmsPermissionDialog = true
+                        } else {
+                            showPayContact = false
+                            onInitiateTransfer(phone, amt)
+                        }
                     }
                 )
             }
@@ -1423,6 +1650,58 @@ fun MainScreen(
             if (showCallSuccessDialog) {
                 CallSuccessDialog(
                     onDismiss = { showCallSuccessDialog = false }
+                )
+            }
+
+            if (showGlassesSetupDialog) {
+                GlassesSetupDialog(
+                    onConnect = {
+                        showGlassesSetupDialog = false
+                        // Mark setup as started so dialog never appears again
+                        sharedPreferences.edit()
+                            .putBoolean(AppConstants.KEY_GLASSES_SETUP_STARTED, true)
+                            .apply()
+                        isGlassesSetupStarted = true
+                        val activity = context as? android.app.Activity ?: return@GlassesSetupDialog
+                        val pm = PermissionManager(activity)
+                        if (!pm.checkGlassesPermissions()) {
+                            pm.requestGlassesPermissions()
+                            return@GlassesSetupDialog
+                        }
+                        GlassesSessionManager.startRegistration(activity)
+                    },
+                    onDismiss = { showGlassesSetupDialog = false }
+                )
+            }
+
+            if (showOverlayPermissionDialog) {
+                PermissionExplanationDialog(
+                    title = "Overlay Permission",
+                    message = "Flowpay needs overlay permission to protect your screen during USSD payment calls. This ensures your transaction details stay visible while the call is in progress.",
+                    confirmButtonText = "Grant",
+                    onConfirm = {
+                        showOverlayPermissionDialog = false
+                        permissionManager?.requestOverlayPermission()
+                    },
+                    onDismiss = {
+                        showOverlayPermissionDialog = false
+                    }
+                )
+            }
+
+            if (showSmsPermissionDialog) {
+                PermissionExplanationDialog(
+                    title = "SMS Permission",
+                    message = "This permission is used solely to confirm whether your transaction was completed or failed. Flowpay cannot access, read, or store any of your other messages.",
+                    confirmButtonText = "Allow SMS access",
+                    onConfirm = {
+                        showSmsPermissionDialog = false
+                        permissionManager?.requestSMSPermissions()
+                    },
+                    onDismiss = {
+                        showSmsPermissionDialog = false
+                        pendingSmsAction = null
+                    }
                 )
             }
         }
@@ -1482,7 +1761,7 @@ fun TransactionItem(payment: PaymentDetails) {
                     text = formatAmount(payment.amount),
                     fontSize = 16.sp, // Larger for better visibility
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF7BA8F5), // Header blue color
+                    color = LocalFlowPayAccentTheme.current.headerGradientStart, // Header color
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1491,7 +1770,7 @@ fun TransactionItem(payment: PaymentDetails) {
                     imageVector = Icons.Default.ArrowOutward,
                     contentDescription = "Outgoing",
                     modifier = Modifier.size(18.dp), // Slightly larger icon
-                    tint = Color(0xFF7BA8F5) // Header blue color
+                    tint = LocalFlowPayAccentTheme.current.headerGradientStart // Header color
                 )
             }
         }
@@ -1504,11 +1783,15 @@ fun PayContactDialog(
     onConfirm: (String, String) -> Unit
 ) {
     val context = LocalContext.current
+    val hostActivity = remember(context) { context.findComponentActivity() }
     var phoneNumber by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var selectedContactName by remember { mutableStateOf<String?>(null) }
     var showContactPicker by remember { mutableStateOf(false) }
-    val permissionManager = remember { PermissionManager(context as ComponentActivity) }
+    var showContactPermissionDialog by remember { mutableStateOf(false) }
+    val permissionManager = remember(hostActivity) {
+        hostActivity?.let { PermissionManager(it) }
+    }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1530,7 +1813,7 @@ fun PayContactDialog(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFF4A90E2).copy(alpha = 0.15f)
+                            containerColor = LocalFlowPayAccentTheme.current.accent.copy(alpha = 0.15f)
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -1543,13 +1826,13 @@ fun PayContactDialog(
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = null,
-                                tint = Color(0xFF4A90E2),
+                                tint = LocalFlowPayAccentTheme.current.accent,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Sending to: $name",
-                                color = Color(0xFF4A90E2),
+                                color = LocalFlowPayAccentTheme.current.accent,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -1589,26 +1872,33 @@ fun PayContactDialog(
                     // Contact picker button
                     IconButton(
                         onClick = {
-                            // Check for contact permission
-                            if (permissionManager.hasContactPermission()) {
+                            val pm = permissionManager
+                            if (pm == null) {
+                                Toast.makeText(
+                                    context.applicationContext,
+                                    "Unable to open contacts from this screen.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                return@IconButton
+                            }
+                            if (pm.hasContactPermission()) {
                                 showContactPicker = true
                             } else {
-                                // Request permission
-                                permissionManager.requestContactPermission()
+                                showContactPermissionDialog = true
                             }
                         },
                         modifier = Modifier
                             .padding(top = 8.dp)
                             .size(48.dp)
                             .background(
-                                color = Color(0xFF4A90E2).copy(alpha = 0.2f),
+                                color = LocalFlowPayAccentTheme.current.accent.copy(alpha = 0.2f),
                                 shape = RoundedCornerShape(8.dp)
                             )
                     ) {
                         Icon(
                             imageVector = Icons.Default.PermContactCalendar,
                             contentDescription = "Select Contact",
-                            tint = Color(0xFF4A90E2)
+                            tint = LocalFlowPayAccentTheme.current.accent
                         )
                     }
                 }
@@ -1641,7 +1931,7 @@ fun PayContactDialog(
                 onClick = { onConfirm(phoneNumber, amount) },
                 enabled = phoneNumber.length == 10 && amount.isNotEmpty() && amount != "0"
             ) {
-                Text("Transfer", color = if (phoneNumber.length == 10 && amount.isNotEmpty()) Color(0xFF4A90E2) else Color(0xFF6A6A6A))
+                Text("Transfer", color = if (phoneNumber.length == 10 && amount.isNotEmpty()) LocalFlowPayAccentTheme.current.accent else Color(0xFF6A6A6A))
             }
         },
         dismissButton = {
@@ -1659,6 +1949,22 @@ fun PayContactDialog(
                 phoneNumber = contact.phoneNumber
                 selectedContactName = contact.name
                 showContactPicker = false
+            }
+        )
+    }
+
+    // Show contact permission explanation dialog
+    if (showContactPermissionDialog) {
+        PermissionExplanationDialog(
+            title = "Contacts Permission",
+            message = "Flowpay needs access to your contacts so you can quickly select a recipient by name instead of typing their number manually.",
+            confirmButtonText = "Grant",
+            onConfirm = {
+                showContactPermissionDialog = false
+                permissionManager?.requestContactPermission()
+            },
+            onDismiss = {
+                showContactPermissionDialog = false
             }
         )
     }
@@ -1691,7 +1997,7 @@ fun SettingsDialog(
             TextButton(
                 onClick = onReconfigure,
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = Color(0xFF4A90E2)
+                    contentColor = LocalFlowPayAccentTheme.current.accent
                 )
             ) {
                 Text("Reconfigure")
@@ -1700,6 +2006,149 @@ fun SettingsDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel", color = Color(0xFF8A8A8A))
+            }
+        }
+    )
+}
+
+@Composable
+fun GlassesSetupDialog(
+    onConnect: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val accent = LocalFlowPayAccentTheme.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1A1A),
+        titleContentColor = Color.White,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(accent.accent.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(R.drawable.ic_glasses),
+                        contentDescription = null,
+                        tint = accent.accent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Text(
+                    text = "Set Up Meta Glasses",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Use your Ray-Ban Meta glasses to scan UPI QR codes hands-free by saying \"Flowpay\".",
+                    fontSize = 14.sp,
+                    color = Color(0xFFCCCCCC),
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                val steps = listOf(
+                    "Pair your Ray-Ban Meta glasses via Bluetooth in your phone's Settings.",
+                    "Install the Meta AI app from the Play Store if you haven't already.",
+                    "Open Meta AI and connect your glasses from within the app.",
+                    "Tap Connect — Flowpay will register with your glasses via Meta.",
+                    "Say \"Flowpay\" while wearing the glasses to scan QR codes hands-free."
+                )
+                steps.forEachIndexed { index, step ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 2.dp)
+                                .size(20.dp)
+                                .background(accent.accent.copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${index + 1}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = accent.accent
+                            )
+                        }
+                        Text(
+                            text = step,
+                            fontSize = 13.sp,
+                            color = Color(0xFFCCCCCC),
+                            lineHeight = 19.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConnect,
+                colors = ButtonDefaults.textButtonColors(contentColor = accent.accent)
+            ) {
+                Text("Connect", fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Not now", color = Color(0xFF8A8A8A))
+            }
+        }
+    )
+}
+
+@Composable
+fun PermissionExplanationDialog(
+    title: String,
+    message: String,
+    confirmButtonText: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1A1A),
+        title = {
+            Text(
+                text = title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+        },
+        text = {
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                color = Color(0xFFCCCCCC),
+                lineHeight = 20.sp
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = LocalFlowPayAccentTheme.current.accent
+                )
+            ) {
+                Text(confirmButtonText)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Not now", color = Color(0xFF8A8A8A))
             }
         }
     )
@@ -1765,7 +2214,7 @@ fun CallDurationIssueDialog(
                 )
                 Text(
                     text = "Try again tomorrow.",
-                    color = Color(0xFF4A9EFF),
+                    color = LocalFlowPayAccentTheme.current.accentLight,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
                     fontWeight = FontWeight.Medium
@@ -1776,7 +2225,7 @@ fun CallDurationIssueDialog(
             TextButton(
                 onClick = onDismiss,
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = Color(0xFF4A9EFF)
+                    contentColor = LocalFlowPayAccentTheme.current.accentLight
                 )
             ) {
                 Text(
@@ -1799,7 +2248,7 @@ fun CallSuccessDialog(
         title = { 
             Text(
                 text = "Great!",
-                color = Color(0xFF4A9EFF),
+                color = LocalFlowPayAccentTheme.current.accentLight,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold
             ) 
@@ -1840,7 +2289,7 @@ fun CallSuccessDialog(
             TextButton(
                 onClick = onDismiss,
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = Color(0xFF4A9EFF)
+                    contentColor = LocalFlowPayAccentTheme.current.accentLight
                 )
             ) {
                 Text(

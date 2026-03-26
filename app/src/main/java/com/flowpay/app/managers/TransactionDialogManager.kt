@@ -91,10 +91,10 @@ class TransactionDialogManager(private val context: Context) {
             // Make dialog background transparent and rounded
             dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             
-            // Setup success icon
+            // Setup success icon - tick in white
             val successIcon = dialogView.findViewById<ImageView>(R.id.iv_success_icon)
             successIcon?.setImageResource(R.drawable.ic_success_check)
-            successIcon?.setColorFilter(context.getColor(R.color.flowpay_green))
+            successIcon?.setColorFilter(context.getColor(R.color.white))
             
             // Setup title
             val titleText = dialogView.findViewById<TextView>(R.id.tv_success_title)

@@ -8,13 +8,13 @@
     android:elevation="8dp"
     android:padding="32dp">
 
-    <!-- Success Icon -->
+    <!-- Success Icon (tick white) -->
     <ImageView
         android:id="@+id/iv_success_icon"
         android:layout_width="80dp"
         android:layout_height="80dp"
         android:src="@drawable/ic_success_check"
-        android:tint="@color/flowpay_green"
+        android:tint="@color/white"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -30,7 +30,7 @@
         android:text="Payment Successful"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:textColor="@color/black"
+        android:textColor="@color/transaction_primary"
         app:layout_constraintTop_toBottomOf="@+id/iv_success_icon"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

@@ -5,11 +5,25 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
+def localProperties = new Properties()
+def localPropertiesFile = rootDir.toPath().resolve("local.properties").toFile()
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.newInputStream())
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
+        maven {
+            url "https://maven.pkg.github.com/facebook/meta-wearables-dat-android"
+            credentials {
+                username = ""
+                password = localProperties.getProperty("github_token", System.getenv("GITHUB_TOKEN") ?: "")
+            }
+        }
     }
 }
 

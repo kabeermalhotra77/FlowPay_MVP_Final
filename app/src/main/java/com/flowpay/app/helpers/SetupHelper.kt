@@ -15,6 +15,56 @@ class SetupHelper(
 ) {
     companion object {
         private const val TAG = "SetupHelper"
+        private const val PREFS = "FlowPayPrefs"
+        private const val KEY_USER_REPORTED_USSD_NOT_WORKING = "user_reported_ussd_not_working"
+
+        /** Jio (and similar) — primary SIM carrier does not support *99# for this flow. */
+        fun isPrimarySimUssdCapable(context: Context): Boolean {
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val primarySim = prefs.getString("selected_primary_sim", "") ?: ""
+            return primarySim != "jio"
+        }
+
+        /** User chose “It doesn't work for me” during *99# setup test. */
+        fun hasUserReportedUssdNotWorking(context: Context): Boolean {
+            return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_USER_REPORTED_USSD_NOT_WORKING, false)
+        }
+
+        fun setUserReportedUssdNotWorking(context: Context, reported: Boolean) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putBoolean(KEY_USER_REPORTED_USSD_NOT_WORKING, reported)
+                .apply()
+        }
+
+        internal fun clearUserReportedUssdNotWorking(context: Context) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .remove(KEY_USER_REPORTED_USSD_NOT_WORKING)
+                .apply()
+        }
+
+        /** Scan-to-pay (USSD) is allowed: carrier supports *99# and user did not opt out in setup. */
+        fun isScanToPayUssdAvailable(context: Context): Boolean {
+            return isPrimarySimUssdCapable(context) && !hasUserReportedUssdNotWorking(context)
+        }
+
+        /**
+         * If scan-to-pay should be blocked, returns a user-facing reason; otherwise null.
+         * Jio is checked before the user-reported flag so the correct message is shown.
+         */
+        fun getScanToPayBlockedMessage(context: Context): String? {
+            if (isScanToPayUssdAvailable(context)) return null
+            if (!isPrimarySimUssdCapable(context)) {
+                return "Scan to pay is not available — Jio does not support *99# USSD payments"
+            }
+            return "Scan to pay is not available — USSD does not work for you on this device, so this feature can't be used."
+        }
+
+        @Deprecated(
+            message = "Use isPrimarySimUssdCapable for carrier-only checks, or isScanToPayUssdAvailable for scan-to-pay.",
+            replaceWith = ReplaceWith("isPrimarySimUssdCapable(context)")
+        )
+        fun isUssdSupported(context: Context): Boolean = isPrimarySimUssdCapable(context)
     }
 
     /**
@@ -37,11 +87,11 @@ class SetupHelper(
      * Data class for setup data
      */
     data class SetupData(
-        val mobileNumber: String,
         val selectedBank: String,
         val selectedPrimarySim: String,
         val isDualSimEnabled: Boolean,
-        val selectedSecondarySim: String
+        val selectedSecondarySim: String,
+        val disclaimerAccepted: Boolean
     )
 
     /**
@@ -87,18 +137,12 @@ class SetupHelper(
     }
 
     /**
-     * Validate mobile number
+     * Validate disclaimer acceptance
      */
-    fun validateMobileNumber(mobileNumber: String): ValidationResult {
-        if (mobileNumber.isEmpty() || mobileNumber.length != 10) {
-            return ValidationResult(false, "Please enter a valid 10-digit mobile number")
+    fun validateDisclaimer(disclaimerAccepted: Boolean): ValidationResult {
+        if (!disclaimerAccepted) {
+            return ValidationResult(false, "Please accept the disclaimer to proceed")
         }
-        
-        // Check if phone number starts with valid digits (6-9 for Indian mobile numbers)
-        if (!mobileNumber.matches(Regex("^[6-9][0-9]{9}$"))) {
-            return ValidationResult(false, "Please enter a valid Indian mobile number (starting with 6-9)")
-        }
-        
         return ValidationResult(true, "")
     }
 
@@ -139,10 +183,10 @@ class SetupHelper(
      * Validate complete form
      */
     fun validateForm(setupData: SetupData): ValidationResult {
-        // Validate mobile number
-        val mobileValidation = validateMobileNumber(setupData.mobileNumber)
-        if (!mobileValidation.isValid) {
-            return mobileValidation
+        // Validate disclaimer
+        val disclaimerValidation = validateDisclaimer(setupData.disclaimerAccepted)
+        if (!disclaimerValidation.isValid) {
+            return disclaimerValidation
         }
 
         // Validate bank selection
@@ -176,11 +220,11 @@ class SetupHelper(
         val sharedPreferences = context.getSharedPreferences("FlowPayPrefs", Context.MODE_PRIVATE)
         sharedPreferences.edit()
             .putBoolean("setup_completed", true)
-            .putString("mobile_number", setupData.mobileNumber)
             .putString("selected_bank", setupData.selectedBank)
             .putString("selected_primary_sim", setupData.selectedPrimarySim)
             .putBoolean("is_dual_sim_enabled", setupData.isDualSimEnabled)
             .putString("selected_secondary_sim", setupData.selectedSecondarySim)
+            .putBoolean("disclaimer_accepted", setupData.disclaimerAccepted)
             .apply()
     }
 
@@ -211,24 +255,24 @@ class SetupHelper(
     fun loadSetupData(): SetupData? {
         val sharedPreferences = context.getSharedPreferences("FlowPayPrefs", Context.MODE_PRIVATE)
         
-        val mobileNumber = sharedPreferences.getString("mobile_number", "")
         val selectedBank = sharedPreferences.getString("selected_bank", "")
         val selectedPrimarySim = sharedPreferences.getString("selected_primary_sim", "")
         val isDualSimEnabled = sharedPreferences.getBoolean("is_dual_sim_enabled", false)
         val selectedSecondarySim = sharedPreferences.getString("selected_secondary_sim", "")
-        
+        val disclaimerAccepted = sharedPreferences.getBoolean("disclaimer_accepted", false)
+
         // Only return data if setup was completed
         val isSetupCompleted = sharedPreferences.getBoolean("setup_completed", false)
         if (!isSetupCompleted) {
             return null
         }
-        
+
         return SetupData(
-            mobileNumber = mobileNumber ?: "",
             selectedBank = selectedBank ?: "",
             selectedPrimarySim = selectedPrimarySim ?: "",
             isDualSimEnabled = isDualSimEnabled,
-            selectedSecondarySim = selectedSecondarySim ?: ""
+            selectedSecondarySim = selectedSecondarySim ?: "",
+            disclaimerAccepted = disclaimerAccepted
         )
     }
 
@@ -247,26 +291,13 @@ class SetupHelper(
         val sharedPreferences = context.getSharedPreferences("FlowPayPrefs", Context.MODE_PRIVATE)
         sharedPreferences.edit()
             .putBoolean("setup_completed", false)
-            .remove("mobile_number")
             .remove("selected_bank")
             .remove("selected_primary_sim")
             .remove("is_dual_sim_enabled")
             .remove("selected_secondary_sim")
+            .remove("disclaimer_accepted")
             .apply()
-    }
-
-    /**
-     * Format mobile number input (remove non-digits, handle leading zeros)
-     */
-    fun formatMobileNumberInput(input: String): String {
-        // More strict validation - only allow digits, no leading zeros
-        val filtered = input.filter { char -> char.isDigit() }
-        val validated = if (filtered.length > 1 && filtered.startsWith("0")) {
-            filtered.drop(1) // Remove leading zero
-        } else {
-            filtered
-        }.take(10)
-        return validated
+        clearUserReportedUssdNotWorking(context)
     }
 
     /**

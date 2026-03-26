@@ -24,6 +24,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flowpay.app.services.CallOverlayService
 import com.flowpay.app.ui.theme.FlowPayTheme
+import com.flowpay.app.ui.theme.BlueAccentTheme
+import com.flowpay.app.ui.theme.LocalFlowPayAccentTheme
+import com.flowpay.app.ui.theme.RedAccentTheme
+import com.flowpay.app.FlowPayApplication
+import com.flowpay.app.data.SettingsRepository
+import androidx.compose.runtime.CompositionLocalProvider
+import com.flowpay.app.R
 
 class CallOverlayActivity : ComponentActivity() {
     
@@ -115,13 +122,23 @@ class CallOverlayActivity : ComponentActivity() {
         val phoneNumber = intent.getStringExtra("phone_number") ?: ""
         val amount = intent.getStringExtra("amount") ?: ""
         
+        val app = application as? FlowPayApplication
+        val settingsRepository = app?.settingsRepository ?: SettingsRepository(applicationContext)
+        val accentTheme = settingsRepository.settingsFlow.value.accentTheme
+        setTheme(
+            if (accentTheme == "red") R.style.Theme_FlowPay_Red
+            else R.style.Theme_FlowPay
+        )
         setContent {
-            FlowPayTheme {
-                CallOverlayScreen(
-                    phoneNumber = phoneNumber,
-                    amount = amount,
-                    onContinue = { finish() }
-                )
+            val accent = if (accentTheme == "red") RedAccentTheme else BlueAccentTheme
+            CompositionLocalProvider(LocalFlowPayAccentTheme provides accent) {
+                FlowPayTheme {
+                    CallOverlayScreen(
+                        phoneNumber = phoneNumber,
+                        amount = amount,
+                        onContinue = { finish() }
+                    )
+                }
             }
         }
     }
@@ -184,7 +201,7 @@ fun CallOverlayScreen(
             ) {
                 // Header
                 Text(
-                    text = "FlowPay Protection",
+                    text = "Flowpay Protection",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -266,7 +283,7 @@ fun CallOverlayScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp),
-                    color = Color(0xFF4A90E2),
+                    color = LocalFlowPayAccentTheme.current.accent,
                     trackColor = Color(0xFF444444)
                 )
                 
@@ -285,7 +302,7 @@ fun CallOverlayScreen(
                     onClick = onContinue,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4A90E2)
+                        containerColor = LocalFlowPayAccentTheme.current.accent
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {

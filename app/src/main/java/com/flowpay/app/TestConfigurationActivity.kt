@@ -15,105 +15,129 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flowpay.app.ui.theme.FlowPayTheme
+import com.flowpay.app.ui.theme.BlueAccentTheme
+import com.flowpay.app.ui.theme.LocalFlowPayAccentTheme
+import com.flowpay.app.ui.theme.RedAccentTheme
+import com.flowpay.app.FlowPayApplication
+import com.flowpay.app.data.SettingsRepository
+import androidx.compose.runtime.CompositionLocalProvider
+import com.flowpay.app.R
 import com.flowpay.app.helpers.TestConfigurationHelper
 import com.flowpay.app.managers.CallType
 import com.flowpay.app.ui.dialogs.UssdProgressDialog
 import com.flowpay.app.ui.dialogs.Upi123ProgressDialog
+import android.widget.Toast
+import com.flowpay.app.helpers.SetupHelper
 import kotlinx.coroutines.delay
 
 class TestConfigurationActivity : ComponentActivity() {
     private lateinit var testHelper: TestConfigurationHelper
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Initialize test helper
         testHelper = TestConfigurationHelper(this, object : TestConfigurationHelper.UICallback {
             override fun showToast(message: String) {
                 runOnUiThread { android.widget.Toast.makeText(this@TestConfigurationActivity, message, android.widget.Toast.LENGTH_LONG).show() }
             }
-            
+
             override fun updateUssdTesting(isTesting: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateUssdDialog(show: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateUssdTestCompleted(completed: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateUpi123Testing(isTesting: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateUpi123TestCompleted(completed: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateUpi123Dialog(show: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateUpi123ConfigurationOptions(show: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateVoiceTesting(isTesting: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateVoiceDialog(show: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateVoiceTestCompleted(completed: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateCallCompleteButton(show: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateUssdProgressMessage(message: String) {
                 // State will be managed by the composable
             }
-            
+
             override fun updateUssdConfigurationOptions(show: Boolean) {
                 // State will be managed by the composable
             }
-            
+
             override fun navigateToMain() {
                 val intent = Intent(this@TestConfigurationActivity, MainActivity::class.java)
                 startActivity(intent)
                 finish()
             }
         })
-        
+
         // Initialize the helper
         testHelper.initialize()
-        
+
+        val app = application as? FlowPayApplication
+        val settingsRepository = app?.settingsRepository ?: SettingsRepository(applicationContext)
+        val accentTheme = settingsRepository.settingsFlow.value.accentTheme
+        setTheme(
+            if (accentTheme == "red") R.style.Theme_FlowPay_Red
+            else R.style.Theme_FlowPay
+        )
         setContent {
-            FlowPayTheme {
-                TestConfigurationScreen(testHelper = testHelper)
+            val accent = if (accentTheme == "red") RedAccentTheme else BlueAccentTheme
+            CompositionLocalProvider(LocalFlowPayAccentTheme provides accent) {
+                FlowPayTheme {
+                    TestConfigurationScreen(testHelper = testHelper)
+                }
             }
         }
     }
-    
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         testHelper.handlePermissionResult(requestCode, permissions, grantResults)
@@ -123,7 +147,8 @@ class TestConfigurationActivity : ComponentActivity() {
 @Composable
 fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
     val context = LocalContext.current
-    
+    val accent = LocalFlowPayAccentTheme.current
+
     // Get test states from helper
     val testStates = testHelper.getTestStates()
     var ussdTestCompleted by remember { mutableStateOf(testStates.ussdTestCompleted) }
@@ -136,7 +161,7 @@ fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
     var showUpi123ConfigurationOptions by remember { mutableStateOf(testStates.showUpi123ConfigurationOptions) }
     var ussdProgressMessage by remember { mutableStateOf(testStates.ussdProgressMessage) }
     var showCallCompleteButton by remember { mutableStateOf(testStates.showCallCompleteButton) }
-    
+
     // Load existing test results
     LaunchedEffect(Unit) {
         val existingResults = testHelper.getTestResults()
@@ -145,7 +170,7 @@ fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
             upi123TestCompleted = existingResults.upi123Enabled
         }
     }
-    
+
     // Update states when helper states change
     LaunchedEffect(testStates) {
         ussdTestCompleted = testStates.ussdTestCompleted
@@ -159,7 +184,7 @@ fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
         ussdProgressMessage = testStates.ussdProgressMessage
         showCallCompleteButton = testStates.showCallCompleteButton
     }
-    
+
     // Add a periodic state check to ensure UI updates
     LaunchedEffect(Unit) {
         while (true) {
@@ -177,47 +202,93 @@ fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
             showCallCompleteButton = currentStates.showCallCompleteButton
         }
     }
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
-            .padding(20.dp)
+            .background(Color.Black)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .widthIn(max = 420.dp)
+                .align(Alignment.Center)
+                .background(Color.Black)
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Test Header Card
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Back to Setup
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .clickable {
+                        context.startActivity(Intent(context, SetupActivity::class.java))
+                        (context as? android.app.Activity)?.finish()
+                    }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color(0xFF888888),
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Back to Setup",
+                    fontSize = 14.sp,
+                    color = Color(0xFF888888),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Gradient Header Card
             TestHeaderCard()
-            
-            Spacer(modifier = Modifier.height(40.dp))
-            
+
+            Spacer(modifier = Modifier.height(28.dp))
+
             // Test Instructions
             TestInstructions()
-            
-            Spacer(modifier = Modifier.height(40.dp))
-            
+
+            Spacer(modifier = Modifier.height(28.dp))
+
             // Test Buttons Container
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // USSD Test Button
+                val isJioSim = !SetupHelper.isPrimarySimUssdCapable(context)
+                val userReportedUssdIssue = SetupHelper.hasUserReportedUssdNotWorking(context)
                 TestButton(
                     title = "Set up",
                     code = "*99#",
-                    description = "Enable pay via scanning payments",
-                    isCompleted = ussdTestCompleted,
+                    description = when {
+                        isJioSim -> "Jio does not support *99# USSD payments"
+                        userReportedUssdIssue ->
+                            "You reported USSD didn't work — scan to pay is off. Tap to try setup again."
+                        else -> "Enable pay via scanning payments"
+                    },
+                    isCompleted = ussdTestCompleted || isJioSim || userReportedUssdIssue,
                     isTesting = ussdTesting,
+                    isUnsupported = isJioSim,
                     onClick = {
-                        if (!ussdTestCompleted && !ussdTesting) {
+                        if (isJioSim) {
+                            Toast.makeText(context, "Jio does not support *99# USSD payments", Toast.LENGTH_LONG).show()
+                        } else if (!ussdTestCompleted && !ussdTesting) {
                             testHelper.initiateCall(CallType.USSD)
                         }
                     }
                 )
-                
+
                 // UPI123 Test Button
                 TestButton(
                     title = "Set up",
@@ -232,45 +303,34 @@ fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
                     }
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(40.dp))
-            
-            // Skip Button
-            Button(
-                onClick = {
-                    testHelper.skipTests()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent
-                ),
-                shape = RoundedCornerShape(20.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF444444))
-            ) {
-                Text(
-                    text = "Skip tests for now",
-                    fontSize = 16.sp,
-                    color = Color(0xFF888888),
-                    modifier = Modifier.padding(18.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.weight(1f))
-            
-            // Continue Button
+
+            // Continue Button — Gradient
             val canContinue = testHelper.canContinue()
             val allTestsCompleted = testHelper.allTestsCompleted()
-            
-            Button(
-                onClick = {
-                    testHelper.continueToMain()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = canContinue,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (canContinue) Color(0xFF4A90E2) else Color(0xFF4A90E2).copy(alpha = 0.5f)
-                ),
-                shape = RoundedCornerShape(25.dp)
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(58.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        brush = if (canContinue)
+                            Brush.horizontalGradient(
+                                colors = listOf(accent.headerGradientStart, accent.headerGradientEnd)
+                            )
+                        else
+                            Brush.horizontalGradient(
+                                colors = listOf(Color(0xFF333333), Color(0xFF2A2A2A))
+                            )
+                    )
+                    .then(
+                        if (canContinue) Modifier.clickable { testHelper.continueToMain() }
+                        else Modifier
+                    ),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = when {
@@ -278,91 +338,114 @@ fun TestConfigurationScreen(testHelper: TestConfigurationHelper) {
                         canContinue -> "Continue with partial setup"
                         else -> "Complete tests to continue"
                     },
-                    fontSize = 20.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
-                    modifier = Modifier.padding(22.dp)
+                    color = if (canContinue) Color.White else Color(0xFF666666)
                 )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
-        
+
         // USSD Progress Dialog
         UssdProgressDialog(
             isVisible = showUssdDialog || showUssdConfigurationOptions,
             progressMessage = ussdProgressMessage,
             showConfigurationOptions = showUssdConfigurationOptions,
             onConfigured = { testHelper.handleUssdConfigurationConfirmation(true) },
-            onNotConfigured = { testHelper.handleUssdConfigurationConfirmation(false) }
+            onNotConfigured = { testHelper.handleUssdConfigurationConfirmation(false) },
+            onDismiss = { testHelper.dismissUssdDialog(fromDoesNotWork = false) },
+            onDoesNotWork = { testHelper.dismissUssdDialog(fromDoesNotWork = true) }
         )
-        
+
         // UPI123 Progress Dialog
         Upi123ProgressDialog(
             isVisible = showUpi123Dialog || showUpi123ConfigurationOptions,
             showConfigurationOptions = showUpi123ConfigurationOptions,
             onConfigured = { testHelper.handleUpi123ConfigurationConfirmation(true) },
-            onNotConfigured = { testHelper.handleUpi123ConfigurationConfirmation(false) }
+            onNotConfigured = { testHelper.handleUpi123ConfigurationConfirmation(false) },
+            onDismiss = { testHelper.dismissUpi123Dialog() }
         )
     }
 }
 
 @Composable
 fun TestHeaderCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(30.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8E8E8))
+    val accent = LocalFlowPayAccentTheme.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        accent.headerGradientStart,
+                        accent.headerGradientEnd
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(35.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(24.dp)
         ) {
-            // Test Icon
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .background(
-                        color = Color(0xFF4A90E2),
-                        shape = RoundedCornerShape(15.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = CheckCircleIcon,
-                    contentDescription = "Test",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(25.dp))
-            
-            Text(
-                text = "Test Configuration",
-                fontSize = 36.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF000000),
-                letterSpacing = (-1).sp
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Text(
-                text = "Complete these tests to verify your\npayment methods are working correctly",
-                fontSize = 16.sp,
-                color = Color(0xFF666666),
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.3.sp,
-                lineHeight = 24.sp,
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            // Progress Dots
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Icon in frosted circle
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.22f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = CheckCircleIcon,
+                        contentDescription = "Test",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column {
+                    Text(
+                        text = "Test Configuration",
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        letterSpacing = 0.3.sp
+                    )
+                    Text(
+                        text = "Step 2 of 3",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Complete these tests to verify your payment methods work correctly",
+                fontSize = 15.sp,
+                color = Color.White.copy(alpha = 0.85f),
+                fontWeight = FontWeight.Normal,
+                lineHeight = 22.sp
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ProgressDot(isActive = false)
                 ProgressDot(isActive = true)
@@ -379,7 +462,7 @@ fun ProgressDot(isActive: Boolean) {
             .width(if (isActive) 24.dp else 8.dp)
             .height(8.dp)
             .background(
-                color = if (isActive) Color(0xFF4A90E2) else Color(0xFFCCCCCC),
+                color = if (isActive) Color.White else Color.White.copy(alpha = 0.4f),
                 shape = if (isActive) RoundedCornerShape(4.dp) else CircleShape
             )
     )
@@ -387,28 +470,35 @@ fun ProgressDot(isActive: Boolean) {
 
 @Composable
 fun TestInstructions() {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .background(Color(0xFF1A1A1A), RoundedCornerShape(16.dp))
+            .padding(20.dp)
     ) {
-        Text(
-            text = "Configure Payment Methods",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Light,
-            color = Color.White,
-            letterSpacing = 0.3.sp
-        )
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Text(
-            text = "We'll test both scanning and manual payment methods to ensure everything works smoothly",
-            fontSize = 14.sp,
-            color = Color(0xFF888888),
-            lineHeight = 21.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Configure Payment Methods",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+                letterSpacing = 0.3.sp
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "We'll test both scanning and manual payment methods to ensure everything works smoothly",
+                fontSize = 15.sp,
+                color = Color(0xFF888888),
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
@@ -419,90 +509,121 @@ fun TestButton(
     description: String,
     isCompleted: Boolean,
     isTesting: Boolean,
+    isUnsupported: Boolean = false,
     onClick: () -> Unit
 ) {
+    val accent = LocalFlowPayAccentTheme.current
+
+    val iconBgColor = when {
+        isUnsupported -> Color(0xFFFF9800).copy(alpha = 0.15f)
+        isCompleted -> Color(0xFF4CAF50).copy(alpha = 0.15f)
+        else -> accent.primary.copy(alpha = 0.15f)
+    }
+    val iconTint = when {
+        isUnsupported -> Color(0xFFFF9800)
+        isCompleted -> Color(0xFF4CAF50)
+        else -> accent.primary
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isCompleted) Color(0xFF1A3A1A) else Color(0xFF1A1A1A)
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp, 
-            if (isCompleted) Color(0xFF4CAF50) else Color(0xFF333333)
-        )
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(25.dp),
+                .padding(horizontal = 20.dp, vertical = 22.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(20.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Test Button Icon
+            // Icon circle — bigger
             Box(
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(52.dp)
                     .background(
-                        color = Color(0x1AFFFFFF),
-                        shape = RoundedCornerShape(12.dp)
+                        color = iconBgColor,
+                        shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (code == "*99#") UssdIcon else UpiIcon,
                     contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    tint = iconTint,
+                    modifier = Modifier.size(26.dp)
                 )
             }
-            
-            // Test Button Content
+
+            // Text content
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "$title ",
+                        text = title,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = if (isUnsupported) Color(0xFFFF9800) else Color.White
                     )
                     Text(
                         text = code,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4A90E2),
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        color = if (isUnsupported) Color(0xFFFF9800) else accent.accent,
+                        fontFamily = FontFamily.Monospace
                     )
                 }
-                
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 Text(
                     text = description,
                     fontSize = 14.sp,
-                    color = Color(0xFF888888),
+                    color = if (isUnsupported) Color(0xFFFF9800).copy(alpha = 0.8f) else Color(0xFF888888),
                     lineHeight = 20.sp
                 )
             }
-            
-            // Test Button Status
+
+            // Status indicator — bigger
             Box(
                 modifier = Modifier.size(32.dp),
                 contentAlignment = Alignment.Center
             ) {
                 when {
                     isTesting -> {
-                        LoadingSpinner()
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = accent.primary,
+                            strokeWidth = 2.5.dp,
+                            trackColor = Color(0xFF333333)
+                        )
+                    }
+                    isUnsupported -> {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(Color(0xFFFF9800), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "!",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                     isCompleted -> {
                         Box(
                             modifier = Modifier
-                                .size(24.dp)
+                                .size(28.dp)
                                 .background(Color(0xFF4CAF50), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -510,48 +631,20 @@ fun TestButton(
                                 imageVector = CheckIcon,
                                 contentDescription = "Completed",
                                 tint = Color.White,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
                     else -> {
                         Box(
                             modifier = Modifier
-                                .size(24.dp)
-                                .border(2.dp, Color(0xFF444444), CircleShape)
+                                .size(28.dp)
+                                .border(1.5.dp, Color(0xFF333333), CircleShape)
                         )
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun LoadingSpinner() {
-    val infiniteTransition = rememberInfiniteTransition(label = "spinner")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
-    
-    Box(
-        modifier = Modifier
-            .size(20.dp)
-            .background(Color.Transparent)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .border(2.dp, Color.White, CircleShape)
-                .border(2.dp, Color.Transparent, CircleShape)
-                .rotate(rotation)
-        )
     }
 }
 
@@ -567,32 +660,30 @@ val CheckCircleIcon: ImageVector
             viewportWidth = 24f,
             viewportHeight = 24f
         ).apply {
+            // Full circle centered at (12,12)
             path(
                 fill = null,
                 stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2.5f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(9f, 11f)
-                lineTo(15f, 17f)
-                lineTo(22f, 4f)
-            }
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2.5f,
+                strokeLineWidth = 2f,
                 strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
                 strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
             ) {
                 moveTo(21f, 12f)
-                lineTo(21f, 19f)
-                arcTo(2f, 2f, 0f, true, true, 19f, 21f)
-                lineTo(5f, 21f)
-                arcTo(2f, 2f, 0f, true, true, 3f, 19f)
-                lineTo(3f, 5f)
-                arcTo(2f, 2f, 0f, true, true, 5f, 3f)
-                lineTo(12f, 3f)
+                arcTo(9f, 9f, 0f, false, true, 3f, 12f)
+                arcTo(9f, 9f, 0f, false, true, 21f, 12f)
+                close()
+            }
+            // Centered checkmark
+            path(
+                fill = null,
+                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
+                strokeLineWidth = 2.5f,
+                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
+            ) {
+                moveTo(8f, 12f)
+                lineTo(11f, 15f)
+                lineTo(16f, 9f)
             }
         }.build()
     }
@@ -600,59 +691,32 @@ val CheckCircleIcon: ImageVector
 val UssdIcon: ImageVector
     get() {
         return ImageVector.Builder(
-            name = "ussd",
+            name = "ussd_phone",
             defaultWidth = 24.dp,
             defaultHeight = 24.dp,
             viewportWidth = 24f,
             viewportHeight = 24f
         ).apply {
+            // Material Design phone icon (filled)
             path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
+                fill = androidx.compose.ui.graphics.SolidColor(Color.White)
             ) {
-                moveTo(4f, 4f)
-                lineTo(20f, 4f)
-                arcTo(2f, 2f, 0f, true, true, 22f, 6f)
-                lineTo(22f, 18f)
-                arcTo(2f, 2f, 0f, true, true, 20f, 20f)
-                lineTo(4f, 20f)
-                arcTo(2f, 2f, 0f, true, true, 2f, 18f)
-                lineTo(2f, 6f)
-                arcTo(2f, 2f, 0f, true, true, 4f, 4f)
+                moveTo(6.62f, 10.79f)
+                curveTo(8.06f, 13.62f, 10.38f, 15.93f, 13.21f, 17.38f)
+                lineTo(15.41f, 15.18f)
+                curveTo(15.68f, 14.91f, 16.08f, 14.82f, 16.43f, 14.94f)
+                curveTo(17.55f, 15.31f, 18.76f, 15.51f, 20f, 15.51f)
+                curveTo(20.55f, 15.51f, 21f, 15.96f, 21f, 16.51f)
+                lineTo(21f, 20f)
+                curveTo(21f, 20.55f, 20.55f, 21f, 20f, 21f)
+                curveTo(10.61f, 21f, 3f, 13.39f, 3f, 4f)
+                curveTo(3f, 3.45f, 3.45f, 3f, 4f, 3f)
+                lineTo(7.5f, 3f)
+                curveTo(8.05f, 3f, 8.5f, 3.45f, 8.5f, 4f)
+                curveTo(8.5f, 5.25f, 8.7f, 6.45f, 9.07f, 7.57f)
+                curveTo(9.18f, 7.92f, 9.1f, 8.31f, 8.82f, 8.59f)
+                lineTo(6.62f, 10.79f)
                 close()
-            }
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(9f, 9f)
-                lineTo(15f, 9f)
-            }
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(9f, 12f)
-                lineTo(15f, 12f)
-            }
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(9f, 15f)
-                lineTo(15f, 15f)
             }
         }.build()
     }
@@ -660,69 +724,38 @@ val UssdIcon: ImageVector
 val UpiIcon: ImageVector
     get() {
         return ImageVector.Builder(
-            name = "upi",
+            name = "upi_payment",
             defaultWidth = 24.dp,
             defaultHeight = 24.dp,
             viewportWidth = 24f,
             viewportHeight = 24f
         ).apply {
+            // Material Design credit card / payment icon (filled)
             path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
+                fill = androidx.compose.ui.graphics.SolidColor(Color.White)
             ) {
-                moveTo(2f, 7f)
-                lineTo(22f, 7f)
-                arcTo(2f, 2f, 0f, true, true, 22f, 9f)
-                lineTo(22f, 19f)
-                arcTo(2f, 2f, 0f, true, true, 20f, 21f)
-                lineTo(4f, 21f)
-                arcTo(2f, 2f, 0f, true, true, 2f, 19f)
-                lineTo(2f, 9f)
-                arcTo(2f, 2f, 0f, true, true, 2f, 7f)
+                moveTo(20f, 4f)
+                lineTo(4f, 4f)
+                curveTo(2.89f, 4f, 2.01f, 4.89f, 2.01f, 6f)
+                lineTo(2f, 18f)
+                curveTo(2f, 19.11f, 2.89f, 20f, 4f, 20f)
+                lineTo(20f, 20f)
+                curveTo(21.11f, 20f, 22f, 19.11f, 22f, 18f)
+                lineTo(22f, 6f)
+                curveTo(22f, 4.89f, 21.11f, 4f, 20f, 4f)
                 close()
-            }
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(7f, 12f)
-                lineTo(9f, 12f)
-            }
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(7f, 16f)
-                lineTo(13f, 16f)
-            }
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(16f, 12f)
-                lineTo(18f, 12f)
-            }
-            path(
-                fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
-                strokeLineWidth = 2f,
-                strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-            ) {
-                moveTo(16f, 16f)
-                lineTo(18f, 16f)
+                moveTo(20f, 18f)
+                lineTo(4f, 18f)
+                lineTo(4f, 12f)
+                lineTo(20f, 12f)
+                lineTo(20f, 18f)
+                close()
+                moveTo(20f, 8f)
+                lineTo(4f, 8f)
+                lineTo(4f, 6f)
+                lineTo(20f, 6f)
+                lineTo(20f, 8f)
+                close()
             }
         }.build()
     }
@@ -743,9 +776,9 @@ val CheckIcon: ImageVector
                 strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
                 strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
             ) {
-                moveTo(5f, 13f)
-                lineTo(9f, 17f)
-                lineTo(19f, 7f)
+                moveTo(6f, 12f)
+                lineTo(10f, 16f)
+                lineTo(18f, 8f)
             }
         }.build()
     }

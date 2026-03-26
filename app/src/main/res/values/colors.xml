@@ -4,6 +4,11 @@
     <color name="white">#FFFFFFFF</color>
     <color name="flowpay_blue">#FF2196F3</color>
     <color name="flowpay_blue_dark">#FF1976D2</color>
+    <!-- Theme Red accent colors — deep ruby-garnet -->
+    <color name="flowpay_red">#FF9B1B30</color>
+    <color name="flowpay_red_dark">#FF6B0F1F</color>
+    <color name="flowpay_red_light">#FFB82040</color>
+    <color name="flowpay_red_light_2">#FFC42845</color>
     <color name="flowpay_green">#FF4CAF50</color>
     <color name="flowpay_green_dark">#FF388E3C</color>
     <color name="flowpay_orange">#FFFF9800</color>
@@ -27,6 +32,7 @@
     
     <!-- Payment Success Colors -->
     <color name="success_green">#FF4CAF50</color>
+    <color name="transaction_primary">#FF5E97D1</color>
     
     <!-- QR Scanner Colors -->
     <color name="primary">#FF2196F3</color>

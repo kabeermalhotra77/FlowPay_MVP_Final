@@ -3,6 +3,7 @@ package com.flowpay.app.ui.dialogs
 import android.content.ContentResolver
 import android.database.Cursor
 import android.provider.ContactsContract
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,8 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flowpay.app.ui.theme.LocalFlowPayAccentTheme
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -51,16 +52,21 @@ fun ContactPickerDialog(
     var filteredContacts by remember { mutableStateOf<List<Contact>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
-    val coroutineScope = rememberCoroutineScope()
 
     // Load contacts when dialog opens
     LaunchedEffect(Unit) {
-        coroutineScope.launch {
-            val loadedContacts = loadContacts(context.contentResolver)
-            contacts = loadedContacts
-            filteredContacts = loadedContacts
-            isLoading = false
+        val loadedContacts = try {
+            loadContacts(context.contentResolver)
+        } catch (e: SecurityException) {
+            Log.e("ContactPicker", "Contacts permission denied or restricted", e)
+            emptyList()
+        } catch (e: Exception) {
+            Log.e("ContactPicker", "Failed to load contacts", e)
+            emptyList()
         }
+        contacts = loadedContacts
+        filteredContacts = loadedContacts
+        isLoading = false
     }
 
     // Filter contacts based on search query
@@ -126,7 +132,7 @@ fun ContactPickerDialog(
                         unfocusedTextColor = Color.White,
                         focusedBorderColor = Color(0xFF4A4A4A),
                         unfocusedBorderColor = Color(0xFF3A3A3A),
-                        cursorColor = Color(0xFF4A90E2),
+                        cursorColor = LocalFlowPayAccentTheme.current.accent,
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent
                     ),
@@ -141,7 +147,7 @@ fun ContactPickerDialog(
                             .height(300.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Color(0xFF4A90E2))
+                        CircularProgressIndicator(color = LocalFlowPayAccentTheme.current.accent)
                     }
                 } else if (filteredContacts.isEmpty()) {
                     Box(
@@ -209,7 +215,7 @@ fun ContactItem(
                 modifier = Modifier
                     .size(40.dp)
                     .background(
-                        color = Color(0xFF4A90E2).copy(alpha = 0.2f),
+                        color = LocalFlowPayAccentTheme.current.accent.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(20.dp)
                     ),
                 contentAlignment = Alignment.Center
@@ -217,7 +223,7 @@ fun ContactItem(
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = null,
-                    tint = Color(0xFF4A90E2),
+                    tint = LocalFlowPayAccentTheme.current.accent,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -273,6 +279,9 @@ suspend fun loadContacts(contentResolver: ContentResolver): List<Contact> = with
         val idColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
         val nameColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
         val numberColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+        if (idColumn < 0 || nameColumn < 0 || numberColumn < 0) {
+            return@withContext emptyList()
+        }
         
         while (it.moveToNext()) {
             val id = it.getString(idColumn)

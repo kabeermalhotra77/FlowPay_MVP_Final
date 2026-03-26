@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -30,6 +32,10 @@ class TestConfigurationHelper(
     private lateinit var callManager: CallManager
     private lateinit var testResultsManager: TestResultsManager
     private lateinit var permissionManager: PermissionManager
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var ussdTimeoutRunnable: Runnable? = null
+    private var upi123ConfigDelayRunnable: Runnable? = null
     
     // Test state variables
     private var currentTestingType: CallType? = null
@@ -76,11 +82,6 @@ class TestConfigurationHelper(
         callManager = CallManager(context)
         testResultsManager = TestResultsManager(context)
         permissionManager = PermissionManager(context as Activity)
-        
-        // Check and request permissions
-        if (!permissionManager.checkAllPermissions()) {
-            permissionManager.requestRequiredPermissions()
-        }
     }
 
     /**
@@ -102,12 +103,11 @@ class TestConfigurationHelper(
      * Initiate a test call
      */
     fun initiateCall(callType: CallType) {
-        // Check permissions before initiating call
-        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != 
-            PackageManager.PERMISSION_GRANTED) {
-            Log.e(TAG, "CALL_PHONE permission not granted")
+        // Check phone permissions before initiating call - request directly if missing
+        if (!permissionManager.hasPhonePermissions()) {
+            Log.e(TAG, "Phone permissions not granted")
             uiCallback.showToast("Phone call permission is required to test USSD")
-            permissionManager.requestRequiredPermissions()
+            permissionManager.requestPhonePermissions()
             return
         }
         
@@ -122,6 +122,7 @@ class TestConfigurationHelper(
         when (callType) {
             CallType.USSD -> {
                 Log.d(TAG, "Initiating USSD setup for *99# - will show dialog after 25 seconds")
+                SetupHelper.setUserReportedUssdNotWorking(context, false)
                 ussdTesting = true
                 showUssdDialog = true
                 ussdProgressMessage = "Dialing *99#..."
@@ -199,19 +200,27 @@ class TestConfigurationHelper(
     }
 
     // Simplified dialog logic - using simple 25-second timeout for USSD and immediate dialog for UPI123
+
+    private fun cancelUssdTimeout() {
+        ussdTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+        ussdTimeoutRunnable = null
+    }
+
+    private fun cancelUpi123ConfigDelay() {
+        upi123ConfigDelayRunnable?.let { mainHandler.removeCallbacks(it) }
+        upi123ConfigDelayRunnable = null
+    }
     
     /**
      * Start 25-second timeout for USSD setup
      */
     private fun startUssdTimeout() {
         Log.d(TAG, "Starting 25-second USSD timeout timer")
-        val handler = android.os.Handler(android.os.Looper.getMainLooper())
-        
-        // After 25 seconds, show configuration dialog
-        handler.postDelayed({
+        cancelUssdTimeout()
+        ussdTimeoutRunnable = Runnable {
+            ussdTimeoutRunnable = null
             Log.d(TAG, "USSD 25-second timeout reached - showing configuration dialog")
             if (ussdTesting && !ussdTestCompleted) {
-                // Hide progress dialog and show configuration dialog
                 showUssdDialog = false
                 showUssdConfigurationOptions = true
                 uiCallback.updateUssdDialog(false)
@@ -220,7 +229,47 @@ class TestConfigurationHelper(
             } else {
                 Log.d(TAG, "USSD timeout reached but conditions not met - ussdTesting: $ussdTesting, ussdTestCompleted: $ussdTestCompleted")
             }
-        }, 25000) // 25 seconds
+        }
+        mainHandler.postDelayed(ussdTimeoutRunnable!!, 25000)
+    }
+
+    /**
+     * Close USSD dialog from the X button, or dismiss progress early ("does not work" uses [fromDoesNotWork] toast).
+     * If the confirmation step is showing, behaves like "Not Yet".
+     */
+    fun dismissUssdDialog(fromDoesNotWork: Boolean = false) {
+        if (showUssdConfigurationOptions) {
+            handleUssdConfigurationConfirmation(false)
+            return
+        }
+        cancelUssdTimeout()
+        ussdTesting = false
+        showUssdDialog = false
+        showUssdConfigurationOptions = false
+        uiCallback.updateUssdTesting(false)
+        uiCallback.updateUssdDialog(false)
+        uiCallback.updateUssdConfigurationOptions(false)
+        if (fromDoesNotWork) {
+            SetupHelper.setUserReportedUssdNotWorking(context, true)
+            uiCallback.showToast("Saved. Scan to pay will stay off—you can tap Set up again if USSD starts working.")
+        }
+    }
+
+    /**
+     * Close UPI123 dialog from the X button. If confirming setup, behaves like "Not Yet".
+     */
+    fun dismissUpi123Dialog() {
+        if (showUpi123ConfigurationOptions) {
+            handleUpi123ConfigurationConfirmation(false)
+            return
+        }
+        cancelUpi123ConfigDelay()
+        upi123Testing = false
+        showUpi123Dialog = false
+        showUpi123ConfigurationOptions = false
+        uiCallback.updateUpi123Testing(false)
+        uiCallback.updateUpi123Dialog(false)
+        uiCallback.updateUpi123ConfigurationOptions(false)
     }
     
     /**
@@ -228,12 +277,14 @@ class TestConfigurationHelper(
      */
     fun handleUssdConfigurationConfirmation(configured: Boolean) {
         Log.d(TAG, "USSD configuration confirmation: $configured")
+        cancelUssdTimeout()
         
         showUssdConfigurationOptions = false
         showUssdDialog = false
         ussdTesting = false
         
         if (configured) {
+            SetupHelper.setUserReportedUssdNotWorking(context, false)
             ussdTestCompleted = true
             showCallCompleteButton = true
             uiCallback.updateUssdTestCompleted(true)
@@ -254,6 +305,7 @@ class TestConfigurationHelper(
      */
     fun handleUpi123ConfigurationConfirmation(configured: Boolean) {
         Log.d(TAG, "UPI123 configuration confirmation: $configured")
+        cancelUpi123ConfigDelay()
         
         showUpi123ConfigurationOptions = false
         showUpi123Dialog = false
@@ -301,9 +353,9 @@ class TestConfigurationHelper(
                         upi123Testing = false
                         uiCallback.updateUpi123Testing(false)
                         
-                        // Add 2-second delay before showing configuration dialog
-                        val handler = android.os.Handler(android.os.Looper.getMainLooper())
-                        handler.postDelayed({
+                        cancelUpi123ConfigDelay()
+                        upi123ConfigDelayRunnable = Runnable {
+                            upi123ConfigDelayRunnable = null
                             if (!upi123TestCompleted) {
                                 showUpi123Dialog = false
                                 showUpi123ConfigurationOptions = true
@@ -311,7 +363,8 @@ class TestConfigurationHelper(
                                 uiCallback.updateUpi123ConfigurationOptions(true)
                                 Log.d(TAG, "UPI123 configuration dialog shown after 2 second delay")
                             }
-                        }, 2000) // 2 second delay
+                        }
+                        mainHandler.postDelayed(upi123ConfigDelayRunnable!!, 2000)
                     }
                 }
             )
@@ -374,14 +427,18 @@ class TestConfigurationHelper(
      * Check if tests can continue
      */
     fun canContinue(): Boolean {
-        return ussdTestCompleted || upi123TestCompleted
+        val ussdWaived = !SetupHelper.isPrimarySimUssdCapable(context) ||
+            SetupHelper.hasUserReportedUssdNotWorking(context)
+        return (ussdTestCompleted || ussdWaived) || upi123TestCompleted
     }
 
     /**
      * Check if all tests are completed
      */
     fun allTestsCompleted(): Boolean {
-        return ussdTestCompleted && upi123TestCompleted
+        val ussdWaived = !SetupHelper.isPrimarySimUssdCapable(context) ||
+            SetupHelper.hasUserReportedUssdNotWorking(context)
+        return (ussdTestCompleted || ussdWaived) && upi123TestCompleted
     }
     
     /**
@@ -389,6 +446,8 @@ class TestConfigurationHelper(
      */
     fun resetAllTests() {
         Log.d(TAG, "Resetting all test configurations")
+        cancelUssdTimeout()
+        cancelUpi123ConfigDelay()
         
         // Reset USSD test
         ussdTesting = false
@@ -420,6 +479,7 @@ class TestConfigurationHelper(
         
         // Clear saved test results
         testResultsManager.clearTestResults()
+        SetupHelper.clearUserReportedUssdNotWorking(context)
         
         uiCallback.showToast("All test configurations have been reset")
         Log.d(TAG, "All test configurations reset successfully")

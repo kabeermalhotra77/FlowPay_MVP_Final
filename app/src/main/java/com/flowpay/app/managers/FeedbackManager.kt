@@ -6,6 +6,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
+import android.util.TypedValue
 import android.view.View
 import android.view.animation.AlphaAnimation
 import android.view.animation.AnimationSet
@@ -117,8 +118,9 @@ class FeedbackManager(private val context: Context) {
      * Show info feedback with blue color and fade animation
      */
     private fun showInfoFeedback(view: View, message: String) {
+        val infoColor = getThemeAccentColor()
         if (view is TextView) {
-            view.setTextColor(ContextCompat.getColor(context, R.color.info_blue))
+            view.setTextColor(infoColor)
             view.text = "ℹ $message"
         }
         
@@ -127,6 +129,15 @@ class FeedbackManager(private val context: Context) {
         
         // Show toast
         showToast(message, Toast.LENGTH_SHORT)
+    }
+    
+    private fun getThemeAccentColor(): Int {
+        val typedValue = TypedValue()
+        return if (context.theme.resolveAttribute(R.attr.flowpayColorAccent, typedValue, true) && typedValue.resourceId != 0) {
+            ContextCompat.getColor(context, typedValue.resourceId)
+        } else {
+            ContextCompat.getColor(context, R.color.info_blue)
+        }
     }
     
     /**

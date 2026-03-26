@@ -678,7 +678,7 @@ class CallOverlayService : Service() {
                 gravity = Gravity.CENTER
                 
                 // FIX: Add window title for debugging
-                title = "FlowPay Overlay"
+                title = "Flowpay Overlay"
             }
             
             // Prepare entrance animation - start completely invisible and small

@@ -1,6 +1,5 @@
 package com.flowpay.app.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +13,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.flowpay.app.utils.findComponentActivity
 
 private val DarkColorScheme = darkColorScheme(
     primary = FlowPayTextWhite,
@@ -54,7 +54,7 @@ fun FlowPayTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
+            val window = view.context.findComponentActivity()?.window ?: return@SideEffect
             // Set status bar to black to match the dark UI theme
             window.statusBarColor = android.graphics.Color.BLACK
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false

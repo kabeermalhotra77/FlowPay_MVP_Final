@@ -90,6 +90,7 @@ class MainActivityHelper(
         fun unregisterBroadcastReceiver(receiver: BroadcastReceiver)
         fun showCallDurationIssueDialog()
         fun showCallSuccessDialog()
+        fun showOverlayPermissionExplanation()
     }
     
     
@@ -129,28 +130,23 @@ class MainActivityHelper(
      */
     fun startQRScanning() {
         Log.d(TAG, "=== STARTING QR SCANNING ===")
-        
-        // Check basic permissions first
-        if (permissionManager?.checkAllPermissions() != true) {
-            Log.d(TAG, "Basic permissions not granted, requesting...")
+
+        SetupHelper.getScanToPayBlockedMessage(context)?.let { message ->
+            Log.d(TAG, "Scan to pay blocked: $message")
+            uiCallback.showToast(message)
+            return
+        }
+
+        // Check phone permissions only (camera is handled by QRScannerActivity)
+        if (permissionManager?.hasPhonePermissions() != true) {
+            Log.d(TAG, "Phone permissions not granted, requesting...")
             uiCallback.showToast("Requesting required permissions...")
             isRequestingPermissions = true
-            permissionManager?.requestRequiredPermissions()
+            permissionManager?.requestPhonePermissions()
             return
         }
-        
-        // Check overlay permission for USSD functionality
-        if (permissionManager?.canDrawOverlays() != true) {
-            Log.d(TAG, "Overlay permission not granted, requesting...")
-            uiCallback.showToast("Requesting overlay permission for payment protection...")
-            isRequestingPermissions = true
-            permissionManager?.requestOverlayPermission()
-            // Don't return here - let the permission result handler open QR scanner
-            // The handleActivityResult() method will call startQRScanning() again after permission is granted
-            return
-        }
-        
-        Log.d(TAG, "All permissions granted, opening QR scanner")
+
+        Log.d(TAG, "Phone permissions granted, opening QR scanner")
         uiCallback.showToast("Opening QR scanner...")
         openQRScanner()
     }
@@ -165,13 +161,13 @@ class MainActivityHelper(
             PermissionConstants.OVERLAY_PERMISSION_REQ_CODE -> {
                 Log.d(TAG, "Overlay permission result received")
                 isRequestingPermissions = false
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && 
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
                     android.provider.Settings.canDrawOverlays(context)) {
-                    Log.d(TAG, "Overlay permission granted, restarting QR scanning")
-                    startQRScanning()
+                    Log.d(TAG, "Overlay permission granted")
+                    uiCallback.showToast("Overlay permission granted. You can now proceed with the transfer.")
                 } else {
-                    Log.w(TAG, "Overlay permission not granted, QR scanning cannot proceed")
-                    uiCallback.showToast("Overlay permission is required for QR scanning. Please enable it in Settings.")
+                    Log.w(TAG, "Overlay permission not granted")
+                    uiCallback.showToast("Overlay permission is required for payment protection. Please enable it in Settings.")
                 }
             }
             PermissionConstants.PERMISSIONS_REQUEST_CODE -> {
@@ -272,11 +268,6 @@ class MainActivityHelper(
             // Register broadcast receiver for audio restoration and call termination
             registerBroadcastReceiver()
             
-            // Check permissions
-            if (permissionManager?.checkAllPermissions() != true) {
-                permissionManager?.requestRequiredPermissions()
-            }
-            
         } catch (e: Exception) {
             Log.e(TAG, "Error during initialization: ${e.message}")
         }
@@ -340,23 +331,23 @@ class MainActivityHelper(
             return
         }
         
-        // Check permissions
-        if (permissionManager?.checkAllPermissions() != true) {
-            uiCallback.showToast("Required permissions not granted")
-            permissionManager?.requestRequiredPermissions()
+        // Check phone permissions only (camera/contacts handled separately)
+        if (permissionManager?.hasPhonePermissions() != true) {
+            uiCallback.showToast("Phone permissions required")
+            permissionManager?.requestPhonePermissions()
             return
         }
         
         if (permissionManager?.checkOverlayPermission() != true) {
-            uiCallback.showToast("Overlay permission required")
-            permissionManager?.requestOverlayPermission()
+            Log.d(TAG, "Overlay permission not granted, showing explanation dialog")
+            uiCallback.showOverlayPermissionExplanation()
             return
         }
-        
+
         // Additional overlay permission validation
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
-            uiCallback.showToast("Overlay permission required for call protection")
-            permissionManager?.requestOverlayPermission()
+            Log.d(TAG, "Overlay permission not granted (system check), showing explanation dialog")
+            uiCallback.showOverlayPermissionExplanation()
             return
         }
         
@@ -451,7 +442,10 @@ class MainActivityHelper(
                 Log.d(TAG, "Phone state listener registered after permission grant")
             }
         } else {
-            uiCallback.showToast("Some permissions were denied. App may not work properly.")
+            // Don't show generic toast for glasses permissions — handled separately
+            if (requestCode != PermissionConstants.GLASSES_PERMISSION_REQUEST_CODE) {
+                uiCallback.showToast("Some permissions were denied. App may not work properly.")
+            }
         }
         
         return success

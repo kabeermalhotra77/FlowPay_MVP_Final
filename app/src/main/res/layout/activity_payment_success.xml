@@ -43,7 +43,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="Payment Successful"
-            android:textColor="@android:color/white"
+            android:textColor="@color/transaction_primary"
             android:textSize="24sp"
             android:fontFamily="sans-serif-medium" />
 
@@ -54,7 +54,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="₹0"
-            android:textColor="#4CAF50"
+            android:textColor="@color/flowpay_green"
             android:textSize="36sp"
             android:fontFamily="sans-serif-bold" />
 

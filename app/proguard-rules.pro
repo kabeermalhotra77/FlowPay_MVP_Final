@@ -93,6 +93,10 @@
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
 
+# Picovoice Porcupine (wake word detection)
+-keep class ai.picovoice.porcupine.** { *; }
+-keep class ai.picovoice.porcupine.*Exception { <init>(...); }
+
 # Keep ML Kit classes
 -keep class com.google.mlkit.** { *; }
 -keep class com.google.android.gms.** { *; }
@@ -115,3 +119,11 @@
     public static int d(...);
     public static int e(...);
 }
+
+# Optional dependencies not on classpath (OkHttp/Meta SDK optional platforms)
+-dontwarn com.facebook.common.preconditions.Preconditions
+-dontwarn com.facebook.infer.annotation.**
+-dontwarn com.facebook.secure.sanitizer.intf.DataSanitizer
+-dontwarn org.bouncycastle.jsse.**
+-dontwarn org.conscrypt.**
+-dontwarn org.openjsse.**

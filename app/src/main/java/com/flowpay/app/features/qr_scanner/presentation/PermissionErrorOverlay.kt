@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flowpay.app.ui.theme.LocalFlowPayAccentTheme
 
 @Composable
 fun PermissionErrorOverlay(
@@ -49,7 +50,7 @@ fun PermissionErrorOverlay(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
-                    text = "FlowPay needs the following permissions to work properly:",
+                    text = "Flowpay needs the following permissions to work properly:",
                     fontSize = 14.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center
@@ -84,7 +85,7 @@ fun PermissionErrorOverlay(
                             onClick = onRequestPermissions,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4A90E2)
+                                containerColor = LocalFlowPayAccentTheme.current.accent
                             )
                         ) {
                             Text(
@@ -100,7 +101,7 @@ fun PermissionErrorOverlay(
                             onClick = onRequestOverlayPermission,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4A90E2)
+                                containerColor = LocalFlowPayAccentTheme.current.accent
                             )
                         ) {
                             Text(

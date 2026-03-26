@@ -45,6 +45,7 @@ object AppConstants {
     const val KEY_SETUP_COMPLETED = "setup_completed"
     const val KEY_TEST_COMPLETED = "test_configuration_completed"
     const val KEY_SELECTED_BANK = "selected_bank"
+    const val KEY_GLASSES_SETUP_STARTED = "glasses_setup_started"
     
     // Broadcast actions
     const val ACTION_RESTORE_AUDIO = "com.flowpay.app.RESTORE_AUDIO"

@@ -49,9 +49,9 @@ class TransactionSuccessActivity : AppCompatActivity() {
     }
     
     private fun displayTransactionDetails(transaction: SimpleTransaction) {
-        // Set success icon
+        // Set success icon - tick in white
         val successIcon = findViewById<ImageView>(R.id.iv_success_icon)
-        successIcon?.setColorFilter(ContextCompat.getColor(this, R.color.flowpay_green))
+        successIcon?.setColorFilter(ContextCompat.getColor(this, R.color.white))
         
         // Set transaction ID
         val transactionIdText = findViewById<TextView>(R.id.tv_transaction_id)
@@ -68,7 +68,7 @@ class TransactionSuccessActivity : AppCompatActivity() {
         // Set status
         val statusText = findViewById<TextView>(R.id.tv_status)
         statusText?.text = transaction.status
-        statusText?.setTextColor(ContextCompat.getColor(this, R.color.flowpay_green))
+        statusText?.setTextColor(ContextCompat.getColor(this, R.color.transaction_primary))
         
         // Set timestamp
         val timestampText = findViewById<TextView>(R.id.tv_timestamp)

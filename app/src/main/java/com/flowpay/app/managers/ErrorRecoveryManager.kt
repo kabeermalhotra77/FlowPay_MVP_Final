@@ -52,7 +52,7 @@ class ErrorRecoveryManager(private val context: Context) {
     private fun handleOverlayPermissionError(onRetry: (() -> Unit)?) {
         val dialog = AlertDialog.Builder(context)
             .setTitle("Overlay Permission Required")
-            .setMessage("FlowPay needs overlay permission to show payment guidance during USSD calls.\n\n" +
+            .setMessage("Flowpay needs overlay permission to show payment guidance during USSD calls.\n\n" +
                     "This helps protect you from fraud by showing secure payment instructions.\n\n" +
                     "Please grant overlay permission in Settings to continue.")
             .setPositiveButton("Open Settings") { _, _ ->
@@ -77,7 +77,7 @@ class ErrorRecoveryManager(private val context: Context) {
     private fun handleCallPermissionError(onRetry: (() -> Unit)?) {
         val dialog = AlertDialog.Builder(context)
             .setTitle("Call Permission Required")
-            .setMessage("FlowPay needs call permission to initiate USSD calls for payments.\n\n" +
+            .setMessage("Flowpay needs call permission to initiate USSD calls for payments.\n\n" +
                     "This is essential for the payment process to work.\n\n" +
                     "Please grant call permission in Settings to continue.")
             .setPositiveButton("Open Settings") { _, _ ->
@@ -102,7 +102,7 @@ class ErrorRecoveryManager(private val context: Context) {
     private fun handleSMSPermissionError(onRetry: (() -> Unit)?) {
         val dialog = AlertDialog.Builder(context)
             .setTitle("SMS Permission Required")
-            .setMessage("FlowPay needs SMS permission to detect payment confirmations.\n\n" +
+            .setMessage("Flowpay needs SMS permission to detect payment confirmations.\n\n" +
                     "This allows automatic completion of payments when you receive SMS from your bank.\n\n" +
                     "Please grant SMS permission in Settings to continue.")
             .setPositiveButton("Open Settings") { _, _ ->

@@ -21,6 +21,7 @@ class QRCodeAnalyzer(
     private var lastDetectedCode: String? = null
     private var lastDetectionTime = 0L
     private val duplicateDetectionThreshold = 2000L // 2 seconds
+    @Volatile
     private var isProcessing = false
     
     @androidx.camera.core.ExperimentalGetImage

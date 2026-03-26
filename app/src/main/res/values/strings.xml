@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name">FlowPay</string>
-    <string name="welcome_message">Welcome to FlowPay!</string>
+    <string name="app_name">Flowpay</string>
+    <string name="welcome_message">Welcome to Flowpay!</string>
     <string name="get_started">Get Started</string>
     <string name="sign_in">Sign In</string>
     <string name="sign_up">Sign Up</string>
@@ -11,7 +11,7 @@
     <string name="already_have_account">Already have an account?</string>
     
     <!-- Setup Screen Strings -->
-    <string name="setup_flowpay">Setup FlowPay</string>
+    <string name="setup_flowpay">Setup Flowpay</string>
     <string name="configure_upi_payments">Configure your UPI payments</string>
     <string name="mobile_number">Mobile Number</string>
     <string name="mobile_number_hint">10-digit mobile number</string>
@@ -26,6 +26,8 @@
     <string name="secondary_sim">Secondary SIM</string>
     <string name="select_secondary_sim">Select your secondary SIM</string>
     <string name="complete_setup">Complete Setup</string>
+    <string name="disclaimer">Disclaimer</string>
+    <string name="disclaimer_text">Flowpay is just a UI layer that helps making transactions. The transactions are done by NPCI instruments themselves. Knowing this, I wish to proceed forward.</string>
     
     <!-- Bank Names -->
     <string name="sbi">State Bank of India</string>
@@ -50,7 +52,7 @@
     <string name="please_select_bank">Please select your bank</string>
     <string name="please_select_primary_sim">Please select your primary SIM</string>
     <string name="please_select_secondary_sim">Please select your secondary SIM</string>
-    <string name="setup_completed">FlowPay setup completed successfully!</string>
+    <string name="setup_completed">Flowpay setup completed successfully!</string>
     
     <!-- Overlay Messages -->
     <string name="upi_payment_progress">UPI Payment Progress</string>

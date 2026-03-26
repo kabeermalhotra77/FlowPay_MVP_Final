@@ -96,13 +96,13 @@ class PermissionGuideActivity : AppCompatActivity() {
     private fun setupOverlayPermissionGuide() {
         ivPermissionIcon.setImageResource(R.drawable.ic_shield)
         tvPermissionTitle.text = "Overlay Permission"
-        tvPermissionDescription.text = "FlowPay needs overlay permission to show payment guidance during USSD calls. This helps protect you from fraud by displaying secure payment instructions."
+        tvPermissionDescription.text = "Flowpay needs overlay permission to show payment guidance during USSD calls. This helps protect you from fraud by displaying secure payment instructions."
         
         val steps = buildString {
             append("1. Tap 'Grant Permission' below\n")
-            append("2. Find 'FlowPay' in the list\n")
+            append("2. Find 'Flowpay' in the list\n")
             append("3. Toggle 'Allow display over other apps'\n")
-            append("4. Return to FlowPay")
+            append("4. Return to Flowpay")
         }
         tvPermissionSteps.text = steps
         
@@ -114,7 +114,7 @@ class PermissionGuideActivity : AppCompatActivity() {
     private fun setupCallPermissionGuide() {
         ivPermissionIcon.setImageResource(R.drawable.ic_phone)
         tvPermissionTitle.text = "Call Permission"
-        tvPermissionDescription.text = "FlowPay needs call permission to initiate USSD calls for payments. This is essential for the payment process to work."
+        tvPermissionDescription.text = "Flowpay needs call permission to initiate USSD calls for payments. This is essential for the payment process to work."
         
         val steps = buildString {
             append("1. Tap 'Grant Permission' below\n")
@@ -131,7 +131,7 @@ class PermissionGuideActivity : AppCompatActivity() {
     private fun setupSMSPermissionGuide() {
         ivPermissionIcon.setImageResource(R.drawable.ic_sms)
         tvPermissionTitle.text = "SMS Permission"
-        tvPermissionDescription.text = "FlowPay needs SMS permission to detect payment confirmations. This allows automatic completion of payments when you receive SMS from your bank."
+        tvPermissionDescription.text = "Flowpay needs SMS permission to detect payment confirmations. This allows automatic completion of payments when you receive SMS from your bank."
         
         val steps = buildString {
             append("1. Tap 'Grant Permission' below\n")

@@ -14,7 +14,7 @@
             <shape>
                 <corners android:radius="8dp"/>
                 <gradient
-                    android:startColor="#FF4A90E2"
+                    android:startColor="?attr/flowpayColorAccent"
                     android:endColor="#FF4CAF50"
                     android:angle="0"/>
             </shape>

@@ -5,6 +5,7 @@
     <!-- Required permissions for UPI123 payment system -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!-- CAMERA: phone camera for Tap to scan; glasses camera is via Meta DAT (grant in Meta AI → Glasses → App permissions → FlowPay). -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -13,13 +14,40 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    
+
+    <!-- Glasses connectivity (BLE + Wi-Fi Direct) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+
+    <!-- Foreground service type declarations (Android 14 requirement) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+
+    <!-- Full Screen Intent permission (Android 14+) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Wake lock for keeping processor alive during scanning -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- RECORD_AUDIO: used only for Bluetooth SCO capture from glasses mic (wake word). Phone mic is never used. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Internet for Meta Wearables DAT SDK -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Camera features for QR code scanning -->
     <uses-feature android:name="android.hardware.camera" />
     <uses-feature android:name="android.hardware.camera.autofocus" />
 
     <application
+        android:name=".FlowPayApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -29,6 +57,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FlowPay"
         tools:targetApi="31">
+
+        <!-- Meta Wearables DAT: use 0 in Developer Mode -->
+        <meta-data
+            android:name="com.meta.wearable.mwdat.APPLICATION_ID"
+            android:value="0" />
+
         <activity
             android:name=".SetupActivity"
             android:exported="false"
@@ -42,18 +76,50 @@
             android:exported="true"
             android:theme="@style/Theme.FlowPay.Splash"
             android:label="">
+            <!-- Meta AI app deep-link callback for DAT registration/permissions -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="flowpayapp" />
+            </intent-filter>
+        </activity>
+
+        <!-- Launcher icon switching (blue vs red). Only one alias is enabled at a time. -->
+        <activity-alias
+            android:name=".MainActivityBlueLauncher"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".MainActivityRedLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_red"
+            android:roundIcon="@mipmap/ic_launcher_red_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         
         <!-- QR Scanner Activity -->
         <activity
             android:name=".features.qr_scanner.presentation.QRScannerActivity"
             android:exported="false"
             android:theme="@style/Theme.FlowPay"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true" />
         
         <!-- SMS Test Activity -->
         <activity
@@ -123,6 +189,13 @@
             android:name=".services.CallOverlayService"
             android:enabled="true"
             android:exported="false" />
+
+        <!-- Glasses Session Service for Meta glasses integration -->
+        <service
+            android:name=".services.GlassesSessionService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice|microphone|camera" />
         
         <!-- USSD Overlay Service for dynamic step-by-step instructions -->
         <!-- DISABLED: USSDOverlay functionality temporarily disabled -->

@@ -35,6 +35,58 @@ class PermissionManager(private val activity: Activity) {
             ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
         }
     }
+
+    /**
+     * Convenience helpers for feature-based permission groups
+     */
+
+    /**
+     * Phone permissions: CALL_PHONE + READ_PHONE_STATE (and any other critical phone-related ones)
+     */
+    fun hasPhonePermissions(): Boolean {
+        return isPermissionGranted(Manifest.permission.CALL_PHONE) &&
+                isPermissionGranted(Manifest.permission.READ_PHONE_STATE)
+    }
+
+    fun requestPhonePermissions() {
+        val phonePermissions = listOf(
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.READ_PHONE_STATE
+        )
+
+        val permissionsNeeded = phonePermissions.filterNot { isPermissionGranted(it) }
+
+        if (permissionsNeeded.isNotEmpty()) {
+            Log.d(TAG, "Requesting phone permissions: ${permissionsNeeded.joinToString()}")
+            ActivityCompat.requestPermissions(
+                activity,
+                permissionsNeeded.toTypedArray(),
+                PermissionConstants.PERMISSIONS_REQUEST_CODE
+            )
+        } else {
+            Log.d(TAG, "Phone permissions already granted")
+        }
+    }
+
+    /**
+     * Camera permission: CAMERA
+     */
+    fun hasCameraPermission(): Boolean {
+        return isPermissionGranted(Manifest.permission.CAMERA)
+    }
+
+    fun requestCameraPermission() {
+        if (!hasCameraPermission()) {
+            Log.d(TAG, "Requesting camera permission")
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.CAMERA),
+                PermissionConstants.CAMERA_PERMISSION_REQ_CODE
+            )
+        } else {
+            Log.d(TAG, "Camera permission already granted")
+        }
+    }
     
     /**
      * Checks if overlay permission is granted
@@ -42,6 +94,11 @@ class PermissionManager(private val activity: Activity) {
     fun checkOverlayPermission(): Boolean {
         return canDrawOverlays(activity)
     }
+
+    /**
+     * Alias for readability in some call sites
+     */
+    fun hasOverlayPermission(): Boolean = checkOverlayPermission()
     
     /**
      * Requests all required permissions using native Android dialogs
@@ -74,22 +131,11 @@ class PermissionManager(private val activity: Activity) {
      */
     fun requestOverlayPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !canDrawOverlays(activity)) {
-            // Show explanation dialog first
-            android.app.AlertDialog.Builder(activity)
-                .setTitle("Overlay Permission Required")
-                .setMessage("FlowPay needs overlay permission to show payment protection dialogs during USSD calls.\n\n" +
-                    "This helps protect you from fraud by showing secure payment instructions.\n\n" +
-                    "Please grant overlay permission to continue.")
-                .setPositiveButton("Grant Overlay Permission") { _, _ ->
-                    val intent = Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:${activity.packageName}")
-                    )
-                    activity.startActivityForResult(intent, PermissionConstants.OVERLAY_PERMISSION_REQ_CODE)
-                }
-                .setNegativeButton("Cancel", null)
-                .setCancelable(false)
-                .show()
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:${activity.packageName}")
+            )
+            activity.startActivityForResult(intent, PermissionConstants.OVERLAY_PERMISSION_REQ_CODE)
         }
     }
     
@@ -160,6 +206,16 @@ class PermissionManager(private val activity: Activity) {
                     return false
                 }
             }
+            PermissionConstants.GLASSES_PERMISSION_REQUEST_CODE -> {
+                val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+                if (allGranted) {
+                    Log.d(TAG, "Glasses permissions granted")
+                    return true
+                } else {
+                    Log.w(TAG, "Some glasses permissions denied")
+                    return false
+                }
+            }
         }
         return false
     }
@@ -192,6 +248,11 @@ class PermissionManager(private val activity: Activity) {
         return isPermissionGranted(Manifest.permission.RECEIVE_SMS) && 
                isPermissionGranted(Manifest.permission.READ_SMS)
     }
+
+    /**
+     * Alias with consistent naming
+     */
+    fun hasSmsPermissions(): Boolean = checkSMSPermissions()
     
     /**
      * Requests SMS permissions specifically
@@ -252,5 +313,33 @@ class PermissionManager(private val activity: Activity) {
             arrayOf(Manifest.permission.READ_CONTACTS),
             PermissionConstants.CONTACTS_PERMISSION_REQUEST_CODE
         )
+    }
+
+    /**
+     * Checks if all glasses-specific permissions are granted
+     */
+    fun checkGlassesPermissions(): Boolean {
+        return PermissionConstants.GLASSES_PERMISSIONS.all { permission ->
+            ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    /**
+     * Requests glasses-specific permissions (BLE, location, microphone)
+     */
+    fun requestGlassesPermissions() {
+        val needed = PermissionConstants.GLASSES_PERMISSIONS.filter { permission ->
+            ContextCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED
+        }
+        if (needed.isNotEmpty()) {
+            Log.d(TAG, "Requesting glasses permissions: ${needed.joinToString()}")
+            ActivityCompat.requestPermissions(
+                activity,
+                needed.toTypedArray(),
+                PermissionConstants.GLASSES_PERMISSION_REQUEST_CODE
+            )
+        } else {
+            Log.d(TAG, "All glasses permissions already granted")
+        }
     }
 }
