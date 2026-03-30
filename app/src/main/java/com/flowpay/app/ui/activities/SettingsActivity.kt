@@ -174,8 +174,8 @@ class SettingsViewModel : androidx.lifecycle.ViewModel() {
             "phone" to (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED &&
                     ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED),
             "camera" to (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED),
-            "sms" to (ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED),
+            "sms" to (Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                    ?.contains(context.packageName) == true),
             "contacts" to (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED),
             "overlay" to (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.canDrawOverlays(context) else true)
         )
@@ -344,15 +344,16 @@ fun SettingsScreen(
                         )
                         GroupDivider()
                         PermissionRow(
-                            icon = Icons.Default.Sms,
-                            title = "SMS",
-                            subtitle = "Transaction confirmations",
+                            icon = Icons.Default.Notifications,
+                            title = "Notification Access",
+                            subtitle = "Bank payment confirmations",
                             granted = state.permissions["sms"] ?: false,
                             onRequest = {
-                                onRequestPermissions(arrayOf(
-                                    Manifest.permission.RECEIVE_SMS,
-                                    Manifest.permission.READ_SMS
-                                ))
+                                context.startActivity(
+                                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                )
                             }
                         )
                         GroupDivider()
@@ -785,7 +786,7 @@ private fun ThemeToggleCard(
             // Red option
             ThemePill(
                 label = "Red",
-                swatchColor = Color(0xFFB82040),
+                swatchColor = Color(0xFFEF4056),
                 isSelected = currentTheme == "red",
                 onClick = { if (currentTheme != "red") onThemeSelected("red") },
                 modifier = Modifier.weight(1f)

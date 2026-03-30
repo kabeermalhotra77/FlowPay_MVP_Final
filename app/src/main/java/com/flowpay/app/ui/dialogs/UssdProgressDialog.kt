@@ -247,7 +247,7 @@ val PhoneIcon: ImageVector
         ).apply {
             path(
                 fill = null,
-                stroke = androidx.compose.ui.graphics.SolidColor(Color(0xFF4A90E2)),
+                stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
                 strokeLineWidth = 2f,
                 strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
                 strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round

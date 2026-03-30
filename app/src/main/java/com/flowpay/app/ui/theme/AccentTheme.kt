@@ -25,14 +25,14 @@ val BlueAccentTheme = FlowPayAccentTheme(
     accentLight = Color(0xFF4A9EFF)
 )
 
-// Theme Red: deep ruby-garnet palette — premium dark red with visual presence
+// Theme Red: vivid crimson palette — bold, modern red with strong presence on dark UI
 val RedAccentTheme = FlowPayAccentTheme(
-    primary             = Color(0xFF9B1B30),  // deep ruby — card surfaces & primary elements
-    primaryDark         = Color(0xFF6B0F1F),  // dark garnet — deepest surfaces
-    headerGradientStart = Color(0xFFB82040),  // rich ruby (L~43%) — top of button/header gradient
-    headerGradientEnd   = Color(0xFF8B1528),  // dark garnet (L~32%) — bottom, creates visible depth
-    accent              = Color(0xFFC42845),  // brighter ruby (L~47%) — interactive elements, icons
-    accentLight         = Color(0xFFD63558)   // lighter ruby — borders, pressed states
+    primary             = Color(0xFFDC3545),  // rich crimson — card surfaces & primary elements
+    primaryDark         = Color(0xFF9E1B32),  // deep crimson — darkest surfaces
+    headerGradientStart = Color(0xFFEF4056),  // bright rose-crimson — top of button/header gradient
+    headerGradientEnd   = Color(0xFFCC2D42),  // mid crimson — bottom, clear gradient depth
+    accent              = Color(0xFFFF3B5C),  // vivid rose-red — interactive elements, icons
+    accentLight         = Color(0xFFFF5C7A)   // soft rose — borders, pressed states
 )
 
 val LocalFlowPayAccentTheme = compositionLocalOf { BlueAccentTheme }

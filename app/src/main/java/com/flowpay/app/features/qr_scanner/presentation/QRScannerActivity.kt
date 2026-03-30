@@ -35,6 +35,13 @@ import com.flowpay.app.managers.PermissionManager
 // DISABLED: USSDOverlay functionality temporarily disabled
 // import com.flowpay.app.services.USSDOverlayService
 import android.view.WindowManager
+import android.widget.ImageButton
+import androidx.activity.result.contract.ActivityResultContracts.GetContent
+import androidx.camera.core.Camera
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -57,8 +64,20 @@ class QRScannerActivity : ComponentActivity() {
     private lateinit var instructionsBox: View
     private lateinit var instructionsHeaderInitial: View
     private lateinit var instructionsExpanded: View
+    private lateinit var btnGallery: ImageButton
+    private lateinit var btnFlash: ImageButton
+    private lateinit var tvFlashLabel: TextView
+    private lateinit var bottomActionBar: View
+    private lateinit var dimTop: View
+    private lateinit var dimBottom: View
+    private lateinit var dimLeft: View
+    private lateinit var dimRight: View
+    private lateinit var scanLine: View
+    private var scanLineAnimator: android.animation.ObjectAnimator? = null
     private lateinit var cameraExecutor: ExecutorService
     private var imageAnalyzer: ImageAnalysis? = null
+    private var camera: Camera? = null
+    private var isFlashOn = false
     private lateinit var permissionManager: PermissionManager
     private var isUSSDProcessActive = false
     private var messageHandler: android.os.Handler? = null
@@ -75,6 +94,11 @@ class QRScannerActivity : ComponentActivity() {
     // FIX: Ensure USSD is only dialed once per payment flow (prevents loop when returning from dialer)
     @Volatile
     private var hasDialedUSSD = false
+
+    // Gallery image picker launcher
+    private val galleryLauncher = registerForActivityResult(GetContent()) { uri ->
+        if (uri != null) scanImageFromGallery(uri)
+    }
 
     // Permission launcher for runtime permissions
     private val permissionLauncher = registerForActivityResult(
@@ -148,6 +172,15 @@ class QRScannerActivity : ComponentActivity() {
             instructionsBox = findViewById(R.id.instructionsBox)
             instructionsHeaderInitial = findViewById(R.id.instructionsHeaderInitial)
             instructionsExpanded = findViewById(R.id.instructionsExpanded)
+            btnGallery = findViewById(R.id.btnGallery)
+            btnFlash = findViewById(R.id.btnFlash)
+            tvFlashLabel = findViewById(R.id.tvFlashLabel)
+            bottomActionBar = findViewById(R.id.bottomActionBar)
+            dimTop = findViewById(R.id.dimTop)
+            dimBottom = findViewById(R.id.dimBottom)
+            dimLeft = findViewById(R.id.dimLeft)
+            dimRight = findViewById(R.id.dimRight)
+            scanLine = findViewById(R.id.scanLine)
 
             Log.d("QRScanner", "Views initialized successfully")
 
@@ -167,6 +200,23 @@ class QRScannerActivity : ComponentActivity() {
             btnTerminate.setOnClickListener {
                 Log.d("QRScanner", "Terminate button clicked")
                 terminateUSSDProcess()
+            }
+
+            btnFlash.setOnClickListener {
+                isFlashOn = !isFlashOn
+                camera?.cameraControl?.enableTorch(isFlashOn)
+                btnFlash.setImageResource(
+                    if (isFlashOn) R.drawable.ic_flash_on else R.drawable.ic_flash_off
+                )
+                tvFlashLabel.text = if (isFlashOn) "Flash On" else "Flash Off"
+                btnFlash.setBackgroundResource(
+                    if (isFlashOn) R.drawable.bottom_action_button_active_bg
+                    else R.drawable.bottom_action_button_bg
+                )
+            }
+
+            btnGallery.setOnClickListener {
+                galleryLauncher.launch("image/*")
             }
 
             // Register broadcast receivers
@@ -288,10 +338,11 @@ class QRScannerActivity : ComponentActivity() {
                             Log.e("QRScanner", "Image analyzer is null, cannot bind camera")
                             return@addListener
                         }
-                        cameraProvider.bindToLifecycle(
+                        camera = cameraProvider.bindToLifecycle(
                             this, cameraSelector, preview, analyzer
                         )
                         Log.d("QRScanner", "Camera use cases bound successfully")
+                        runOnUiThread { startScanLineAnimation() }
                     } catch (exc: Exception) {
                         Log.e("QRScanner", "Use case binding failed", exc)
                         runOnUiThread {
@@ -335,6 +386,12 @@ class QRScannerActivity : ComponentActivity() {
             runOnUiThread {
                 if (!isActivityAlive()) return@runOnUiThread
                 scannerOverlay.visibility = View.GONE
+                bottomActionBar.visibility = View.GONE
+                dimTop.visibility = View.GONE
+                dimBottom.visibility = View.GONE
+                dimLeft.visibility = View.GONE
+                dimRight.visibility = View.GONE
+                scanLineAnimator?.cancel()
                 progressBar.visibility = View.VISIBLE
                 tvStatus.text = "Processing QR code..."
                 tvStatus.visibility = View.VISIBLE
@@ -739,6 +796,12 @@ class QRScannerActivity : ComponentActivity() {
             // Hide camera and scanner elements
             viewFinder.visibility = View.GONE
             scannerOverlay.visibility = View.GONE
+            bottomActionBar.visibility = View.GONE
+            dimTop.visibility = View.GONE
+            dimBottom.visibility = View.GONE
+            dimLeft.visibility = View.GONE
+            dimRight.visibility = View.GONE
+            scanLineAnimator?.cancel()
             progressBar.visibility = View.GONE
             topBar.visibility = View.GONE  // Hide top bar to prevent overlap
 
@@ -826,10 +889,22 @@ class QRScannerActivity : ComponentActivity() {
                     // Reset to camera view
                     viewFinder.visibility = View.VISIBLE
                     scannerOverlay.visibility = View.VISIBLE
+                    bottomActionBar.visibility = View.VISIBLE
+                    dimTop.visibility = View.VISIBLE
+                    dimBottom.visibility = View.VISIBLE
+                    dimLeft.visibility = View.VISIBLE
+                    dimRight.visibility = View.VISIBLE
                     topBar.visibility = View.VISIBLE  // Show top bar again
                     tvStatus.visibility = View.GONE
                     instructionsBox.visibility = View.GONE
                     btnTerminate.visibility = View.GONE
+                    // Reset flash state
+                    isFlashOn = false
+                    camera?.cameraControl?.enableTorch(false)
+                    btnFlash.setImageResource(R.drawable.ic_flash_off)
+                    tvFlashLabel.text = "Flash Off"
+                    btnFlash.setBackgroundResource(R.drawable.bottom_action_button_bg)
+                    startScanLineAnimation()
 
                     // Reset instruction states
                     instructionsHeaderInitial.visibility = View.VISIBLE
@@ -853,6 +928,46 @@ class QRScannerActivity : ComponentActivity() {
                     Toast.makeText(this, "Failed to resume scanning. Please restart the app.", Toast.LENGTH_LONG).show()
                 }
             }, 3000)
+        }
+    }
+
+    private fun scanImageFromGallery(uri: Uri) {
+        try {
+            val image = InputImage.fromFilePath(this, uri)
+            val options = BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build()
+            BarcodeScanning.getClient(options).process(image)
+                .addOnSuccessListener { barcodes ->
+                    val qr = barcodes.firstOrNull()?.rawValue
+                    if (qr != null) {
+                        processQRCode(qr)
+                    } else {
+                        Toast.makeText(this, "No QR code found in image", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .addOnFailureListener {
+                    Toast.makeText(this, "Failed to scan image", Toast.LENGTH_SHORT).show()
+                }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Could not load image", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun startScanLineAnimation() {
+        if (!::scanLine.isInitialized) return
+        scanLineAnimator?.cancel()
+        val density = resources.displayMetrics.density
+        // Scanner frame is 280dp; margins 12dp each side; line is 2dp — travel ~254dp
+        val maxTranslation = ((280 - 12 * 2 - 2) * density)
+        scanLineAnimator = android.animation.ObjectAnimator.ofFloat(
+            scanLine, "translationY", 0f, maxTranslation
+        ).apply {
+            duration = 2000
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            start()
         }
     }
 
@@ -973,6 +1088,10 @@ class QRScannerActivity : ComponentActivity() {
             // FIX: Reset processing flags
             isProcessingQRCode = false
             hasDialedUSSD = false
+
+            // Cancel scan line animation
+            scanLineAnimator?.cancel()
+            scanLineAnimator = null
 
             // Unregister broadcast receivers
             try {

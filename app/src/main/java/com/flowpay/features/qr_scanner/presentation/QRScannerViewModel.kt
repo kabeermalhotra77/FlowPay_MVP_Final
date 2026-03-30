@@ -1,6 +1,7 @@
 package com.flowpay.features.qr_scanner.presentation
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flowpay.features.qr_scanner.domain.PaymentFlowManager
@@ -12,6 +13,7 @@ import kotlinx.coroutines.launch
 
 data class QRScannerState(
     val isScanning: Boolean = true,
+    val isFlashOn: Boolean = false,
     val showInstructions: Boolean = false,
     val showSuccess: Boolean = false,
     val showProcessing: Boolean = false,
@@ -98,13 +100,32 @@ class QRScannerViewModel : ViewModel() {
         this.cameraManager = cameraManager
     }
     
+    fun toggleTorch() {
+        val newFlashState = !_state.value.isFlashOn
+        _state.value = _state.value.copy(isFlashOn = newFlashState)
+        cameraManager?.enableTorch(newFlashState)
+    }
+
+    fun scanImageFromGallery(uri: Uri, context: Context) {
+        cameraManager?.decodeQRFromUri(
+            context = context,
+            imageUri = uri,
+            onQrCodeDetected = { qrCode ->
+                processQRCode(qrCode, context)
+            },
+            onError = { errorMsg ->
+                _state.value = _state.value.copy(error = errorMsg)
+            }
+        )
+    }
+
     fun clearError() {
         _state.value = _state.value.copy(error = null)
     }
-    
+
     fun resetToInitialState() {
+        cameraManager?.enableTorch(false)
         _state.value = QRScannerState()
-        // Reset camera processing to allow new QR code scanning
         cameraManager?.resetProcessing()
     }
     

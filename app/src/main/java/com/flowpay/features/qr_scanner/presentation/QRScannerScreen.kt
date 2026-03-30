@@ -8,6 +8,8 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -22,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -29,6 +32,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -50,7 +54,14 @@ fun QRScannerScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val state by viewModel.state.collectAsState()
-    
+
+    // Gallery image picker
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.scanImageFromGallery(it, context) }
+    }
+
     // Camera and Phone permissions
     val permissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
@@ -58,13 +69,13 @@ fun QRScannerScreen(
             Manifest.permission.CALL_PHONE
         )
     )
-    
+
     LaunchedEffect(Unit) {
         permissionsState.launchMultiplePermissionRequest()
         // Reset state when screen is launched
         viewModel.onScreenResumed()
     }
-    
+
     // Cleanup when screen is disposed
     DisposableEffect(Unit) {
         onDispose {
@@ -72,7 +83,7 @@ fun QRScannerScreen(
             viewModel.resetToInitialState()
         }
     }
-    
+
     if (permissionsState.allPermissionsGranted) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Camera Preview
@@ -84,25 +95,46 @@ fun QRScannerScreen(
                     viewModel.setCameraManager(cameraManager)
                 }
             )
-            
+
             // Scanning Overlay with animated elements
             AnimatedScanningOverlay()
-            
-            // Top Controls
-            TopControls(
-                onClose = {
-                    // Reset state before closing
-                    viewModel.resetToInitialState()
-                    onNavigateBack()
-                },
-                onGalleryClick = {
-                    // TODO: Implement gallery access
+
+            // Top Bar - Close button only
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(16.dp),
+                contentAlignment = Alignment.TopStart
+            ) {
+                IconButton(
+                    onClick = {
+                        viewModel.resetToInitialState()
+                        onNavigateBack()
+                    },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(
+                            Color.Black.copy(alpha = 0.5f),
+                            RoundedCornerShape(22.dp)
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
+            }
+
+            // Bottom Action Bar
+            BottomActionBar(
+                isFlashOn = state.isFlashOn,
+                onToggleFlash = { viewModel.toggleTorch() },
+                onGalleryClick = { galleryLauncher.launch("image/*") }
             )
-            
-            // Bottom Instructions
-            BottomInstructions()
-            
+
             // Instructions Dialog (Upper 50% of screen)
             if (state.showInstructions) {
                 PaymentInstructionsOverlay(
@@ -112,7 +144,7 @@ fun QRScannerScreen(
                         onNavigateBack()
                     }
                 )
-                
+
                 // Cancel Button (Lower 50% of screen)
                 Box(
                     modifier = Modifier
@@ -142,7 +174,7 @@ fun QRScannerScreen(
                     }
                 }
             }
-            
+
             // Processing Screen
             if (state.showProcessing) {
                 ProcessingScreen(
@@ -154,7 +186,7 @@ fun QRScannerScreen(
                     }
                 )
             }
-            
+
             // Success Dialog
             if (state.showSuccess) {
                 SuccessDialog()
@@ -163,7 +195,7 @@ fun QRScannerScreen(
                     onNavigateBack()
                 }
             }
-            
+
             // Error handling
             state.error?.let { error ->
                 LaunchedEffect(error) {
@@ -189,24 +221,24 @@ fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraManager = remember { CameraManager() }
-    
+
     DisposableEffect(Unit) {
         onDispose {
             cameraManager.stopCamera()
         }
     }
-    
+
     // Notify parent about camera manager
     LaunchedEffect(cameraManager) {
         onCameraManagerReady(cameraManager)
     }
-    
+
     AndroidView(
         factory = { ctx ->
             val previewView = PreviewView(ctx).apply {
                 scaleType = PreviewView.ScaleType.FILL_CENTER
             }
-            
+
             cameraManager.initializeCamera(
                 context = ctx,
                 lifecycleOwner = lifecycleOwner,
@@ -215,7 +247,7 @@ fun CameraPreview(
                     onQrCodeScanned(qrCode)
                 }
             )
-            
+
             previewView
         },
         modifier = Modifier.fillMaxSize()
@@ -235,7 +267,7 @@ fun AnimatedScanningOverlay() {
         ),
         label = "scanningLine"
     )
-    
+
     val cornerPulse by infiniteTransition.animateFloat(
         initialValue = 0.8f,
         targetValue = 1.2f,
@@ -245,20 +277,20 @@ fun AnimatedScanningOverlay() {
         ),
         label = "cornerPulse"
     )
-    
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         val centerX = size.width / 2
         val centerY = size.height / 2
         val scanFrameSize = size.width * 0.7f
         val cornerLength = scanFrameSize * 0.15f
-        val strokeWidth = 6f
-        
-        // Dark overlay with gradient
+        val strokeWidth = 8f
+
+        // Dark overlay
         drawRect(
             color = Color.Black.copy(alpha = 0.6f),
             size = size
         )
-        
+
         // Clear scanning area with rounded corners
         drawRoundRect(
             color = Color.Transparent,
@@ -267,17 +299,37 @@ fun AnimatedScanningOverlay() {
             cornerRadius = CornerRadius(24f, 24f),
             blendMode = BlendMode.Clear
         )
-        
-        // Animated scanning line
-        val lineY = centerY - scanFrameSize / 2 + (scanFrameSize * scanningLineOffset)
-        drawLine(
-            color = Color(0xFF4CAF50).copy(alpha = 0.8f),
-            start = Offset(centerX - scanFrameSize / 2 + 20f, lineY),
-            end = Offset(centerX + scanFrameSize / 2 - 20f, lineY),
-            strokeWidth = 3f
+
+        // Subtle frame border
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.15f),
+            topLeft = Offset(centerX - scanFrameSize / 2, centerY - scanFrameSize / 2),
+            size = Size(scanFrameSize, scanFrameSize),
+            cornerRadius = CornerRadius(24f, 24f),
+            style = Stroke(width = 1.5f)
         )
-        
+
+        // Animated scanning line with glow
+        val lineY = centerY - scanFrameSize / 2 + (scanFrameSize * scanningLineOffset)
+        val glowHeight = 40f
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    Color(0xFF4CAF50).copy(alpha = 0.4f),
+                    Color(0xFF4CAF50).copy(alpha = 0.9f),
+                    Color(0xFF4CAF50).copy(alpha = 0.4f),
+                    Color.Transparent,
+                ),
+                startY = lineY - glowHeight,
+                endY = lineY + glowHeight
+            ),
+            topLeft = Offset(centerX - scanFrameSize / 2 + 16f, lineY - glowHeight),
+            size = Size(scanFrameSize - 32f, glowHeight * 2)
+        )
+
         // Corner brackets with pulse animation
+        val cornerAlpha = 0.7f + 0.3f * (cornerPulse - 0.8f) / 0.4f
         val corners = listOf(
             // Top-left
             Offset(centerX - scanFrameSize / 2, centerY - scanFrameSize / 2),
@@ -288,7 +340,7 @@ fun AnimatedScanningOverlay() {
             // Bottom-right
             Offset(centerX + scanFrameSize / 2, centerY + scanFrameSize / 2)
         )
-        
+
         corners.forEachIndexed { index, corner ->
             val animatedCornerLength = cornerLength * cornerPulse
             val path = Path().apply {
@@ -315,128 +367,105 @@ fun AnimatedScanningOverlay() {
                     }
                 }
             }
-            
+
             drawPath(
                 path = path,
-                color = Color(0xFF4CAF50),
+                color = Color(0xFF4CAF50).copy(alpha = cornerAlpha),
                 style = Stroke(width = strokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round)
             )
         }
-        
-        // Center dot
-        drawCircle(
-            color = Color(0xFF4CAF50).copy(alpha = 0.6f),
-            radius = 8f,
-            center = Offset(centerX, centerY)
-        )
     }
 }
 
 @Composable
-fun TopControls(
-    onClose: () -> Unit,
+fun BottomActionBar(
+    isFlashOn: Boolean,
+    onToggleFlash: () -> Unit,
     onGalleryClick: () -> Unit
 ) {
-    var isFlashOn by remember { mutableStateOf(false) }
-    
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Close Button
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    Color.Black.copy(alpha = 0.6f),
-                    RoundedCornerShape(24.dp)
-                )
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        
-        // Gallery Button
-        IconButton(
-            onClick = onGalleryClick,
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    Color.Black.copy(alpha = 0.6f),
-                    RoundedCornerShape(24.dp)
-                )
-        ) {
-            Icon(
-                imageVector = Icons.Default.PhotoLibrary,
-                contentDescription = "Gallery",
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        
-        // Flash Toggle Button
-        IconButton(
-            onClick = { isFlashOn = !isFlashOn },
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    if (isFlashOn) Color(0xFFFFD700) else Color.Black.copy(alpha = 0.6f),
-                    RoundedCornerShape(24.dp)
-                )
-        ) {
-            Icon(
-                imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                contentDescription = if (isFlashOn) "Flash On" else "Flash Off",
-                tint = if (isFlashOn) Color.Black else Color.White,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun BottomInstructions() {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.Black.copy(alpha = 0.8f)
-            )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            // Instruction text
+            Text(
+                text = "Align QR code within the frame",
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+
+            // Action buttons row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Position QR code within the frame",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center
+                // Gallery / Photo picker button
+                ActionButton(
+                    icon = Icons.Default.PhotoLibrary,
+                    label = "Gallery",
+                    isActive = false,
+                    onClick = onGalleryClick
                 )
-                Text(
-                    text = "Make sure the QR code is well-lit and clearly visible",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center
+
+                // Torch / Flash button
+                ActionButton(
+                    icon = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                    label = if (isFlashOn) "Flash On" else "Flash Off",
+                    isActive = isFlashOn,
+                    activeColor = Color(0xFFFFD700),
+                    onClick = onToggleFlash
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ActionButton(
+    icon: ImageVector,
+    label: String,
+    isActive: Boolean,
+    activeColor: Color = Color(0xFF4CAF50),
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(56.dp)
+                .background(
+                    color = if (isActive) activeColor.copy(alpha = 0.2f)
+                            else Color.White.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(28.dp)
+                )
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (isActive) activeColor else Color.White,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+        Text(
+            text = label,
+            color = if (isActive) activeColor else Color.White.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -470,7 +499,7 @@ fun PermissionDeniedScreen(
                     tint = Color(0xFF4CAF50),
                     modifier = Modifier.size(64.dp)
                 )
-                
+
                 Text(
                     text = "Camera Permission Required",
                     fontSize = 20.sp,
@@ -478,14 +507,14 @@ fun PermissionDeniedScreen(
                     color = Color.Black,
                     textAlign = TextAlign.Center
                 )
-                
+
                 Text(
                     text = "FlowPay needs camera access to scan QR codes for payments. Please grant the required permissions to continue.",
                     fontSize = 14.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center
                 )
-                
+
                 Button(
                     onClick = onRequestPermissions,
                     modifier = Modifier
@@ -538,7 +567,7 @@ fun ProcessingScreen(
             ) {
                 // Processing Icon with animation
                 ProcessingIcon()
-                
+
                 // Title
                 Text(
                     text = "Processing Payment",
@@ -547,7 +576,7 @@ fun ProcessingScreen(
                     color = Color.Black,
                     textAlign = TextAlign.Center
                 )
-                
+
                 // VPA Address
                 Text(
                     text = "VPA Address:",
@@ -555,7 +584,7 @@ fun ProcessingScreen(
                     fontWeight = FontWeight.Medium,
                     color = Color.Gray
                 )
-                
+
                 // VPA with copy button
                 Row(
                     modifier = Modifier
@@ -575,7 +604,7 @@ fun ProcessingScreen(
                         color = Color.Black,
                         modifier = Modifier.weight(1f)
                     )
-                    
+
                     IconButton(
                         onClick = {
                             // VPA is already copied to clipboard
@@ -588,7 +617,7 @@ fun ProcessingScreen(
                         )
                     }
                 }
-                
+
                 // Instructions
                 Text(
                     text = "Complete the payment in your UPI app and return to FlowPay",
@@ -596,7 +625,7 @@ fun ProcessingScreen(
                     color = Color.Black,
                     textAlign = TextAlign.Center
                 )
-                
+
                 // Status message
                 Text(
                     text = "VPA has been copied to clipboard",
@@ -604,7 +633,7 @@ fun ProcessingScreen(
                     color = Color(0xFF4CAF50),
                     fontWeight = FontWeight.Medium
                 )
-                
+
                 // Close button
                 Button(
                     onClick = onClose,
@@ -640,7 +669,7 @@ private fun ProcessingIcon() {
         ),
         label = "rotation"
     )
-    
+
     Box(
         modifier = Modifier.size(64.dp),
         contentAlignment = Alignment.Center
@@ -657,4 +686,3 @@ private fun ProcessingIcon() {
         )
     }
 }
-

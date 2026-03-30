@@ -131,9 +131,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.flowpay.app.ui.theme.FlowPayTheme
 import com.flowpay.app.helpers.MainActivityHelper
-import com.flowpay.app.helpers.SMSPermissionHelper
 import com.flowpay.app.helpers.TransactionDetector
-import com.flowpay.app.receivers.SimpleSMSReceiver
 import com.flowpay.app.constants.AppConstants
 import com.flowpay.app.constants.PermissionConstants
 import com.flowpay.app.data.PaymentDetails
@@ -154,7 +152,7 @@ import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.content.IntentFilter
-import android.provider.Telephony
+import android.provider.Settings
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -179,7 +177,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var helper: MainActivityHelper
     
     // SMS Receiver
-    private var smsReceiver: SimpleSMSReceiver? = null
     
     // QR Scanner permission launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -223,18 +220,6 @@ class MainActivity : ComponentActivity() {
     
     private fun hideOverlay() {
         helper.hideOverlay()
-    }
-    
-    private fun registerSMSReceiver() {
-        try {
-            smsReceiver = SimpleSMSReceiver()
-            val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
-            filter.priority = IntentFilter.SYSTEM_HIGH_PRIORITY
-            registerReceiver(smsReceiver, filter)
-            Log.d("MainActivity", "SMS Receiver registered")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Failed to register SMS receiver", e)
-        }
     }
     
     // Call this when starting UPI 123 transfer
@@ -427,8 +412,6 @@ class MainActivity : ComponentActivity() {
         
         // Initialize helper
         helper.initialize()
-        // Register SMS receiver
-        registerSMSReceiver()
         
         // Check if setup/test is completed
         if (!helper.isSetupCompleted()) {
@@ -582,15 +565,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         helper.onDestroy()
         
-        // Unregister SMS receiver
-        try {
-            smsReceiver?.let {
-                unregisterReceiver(it)
-                Log.d("MainActivity", "SMS Receiver unregistered")
-            }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Failed to unregister SMS receiver", e)
-        }
+        // SMS detection is now handled by FlowPayNotificationListener (no unregistration needed)
     }
 }
 
@@ -1373,7 +1348,7 @@ fun MainScreen(
                 PaymentActionButtons(
                     onQRScanClick = {
                         Log.d("FlowPay", "QR scan button clicked")
-                        if (permissionManager?.checkSMSPermissions() != true) {
+                        if (!isNotificationListenerEnabled(context)) {
                             pendingSmsAction = {
                                 isScanning = true
                                 onQRScanClick()
@@ -1691,12 +1666,14 @@ fun MainScreen(
 
             if (showSmsPermissionDialog) {
                 PermissionExplanationDialog(
-                    title = "SMS Permission",
-                    message = "This permission is used solely to confirm whether your transaction was completed or failed. Flowpay cannot access, read, or store any of your other messages.",
-                    confirmButtonText = "Allow SMS access",
+                    title = "Notification Access",
+                    message = "FlowPay reads bank notifications to detect payment confirmations. It only looks at messages from bank SMS apps and never stores any other notifications.",
+                    confirmButtonText = "Open Settings",
                     onConfirm = {
                         showSmsPermissionDialog = false
-                        permissionManager?.requestSMSPermissions()
+                        context.startActivity(
+                            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                        )
                     },
                     onDismiss = {
                         showSmsPermissionDialog = false
@@ -1706,6 +1683,13 @@ fun MainScreen(
             }
         }
     }
+}
+
+fun isNotificationListenerEnabled(context: Context): Boolean {
+    val flat = Settings.Secure.getString(
+        context.contentResolver, "enabled_notification_listeners"
+    )
+    return flat?.contains(context.packageName) == true
 }
 
 @Composable

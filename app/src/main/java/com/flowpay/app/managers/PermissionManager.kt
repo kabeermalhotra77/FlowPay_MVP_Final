@@ -191,21 +191,6 @@ class PermissionManager(private val activity: Activity) {
                     return false
                 }
             }
-            PermissionConstants.SMS_PERMISSION_REQUEST_CODE -> {
-                val allSMSPermissionsGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-                
-                if (allSMSPermissionsGranted) {
-                    Log.d(TAG, "SMS permissions granted")
-                    return true
-                } else {
-                    Log.w(TAG, "SMS permissions denied")
-                    val deniedPermissions = permissions.filterIndexed { index, _ ->
-                        grantResults[index] != PackageManager.PERMISSION_GRANTED
-                    }
-                    Log.w(TAG, "Denied SMS permissions: ${deniedPermissions.joinToString()}")
-                    return false
-                }
-            }
             PermissionConstants.GLASSES_PERMISSION_REQUEST_CODE -> {
                 val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
                 if (allGranted) {
@@ -242,60 +227,39 @@ class PermissionManager(private val activity: Activity) {
     }
     
     /**
-     * Checks if SMS permissions are granted
+     * Checks if notification listener access is granted (replaces READ_SMS/RECEIVE_SMS).
+     * Transaction detection now uses NotificationListenerService.
      */
     fun checkSMSPermissions(): Boolean {
-        return isPermissionGranted(Manifest.permission.RECEIVE_SMS) && 
-               isPermissionGranted(Manifest.permission.READ_SMS)
+        val flat = Settings.Secure.getString(
+            activity.contentResolver, "enabled_notification_listeners"
+        )
+        return flat?.contains(activity.packageName) == true
     }
 
-    /**
-     * Alias with consistent naming
-     */
+    /** Alias with consistent naming */
     fun hasSmsPermissions(): Boolean = checkSMSPermissions()
-    
+
     /**
-     * Requests SMS permissions specifically
+     * Opens notification listener settings (replaces SMS permission dialog).
      */
     fun requestSMSPermissions() {
-        val smsPermissions = arrayOf(
-            Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.READ_SMS
+        Log.d(TAG, "Opening notification listener settings")
+        activity.startActivity(
+            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
         )
-        
-        val permissionsNeeded = smsPermissions.filter { permission ->
-            !isPermissionGranted(permission)
-        }
-        
-        if (permissionsNeeded.isNotEmpty()) {
-            Log.d(TAG, "Requesting SMS permissions: ${permissionsNeeded.joinToString()}")
-            ActivityCompat.requestPermissions(
-                activity,
-                permissionsNeeded.toTypedArray(),
-                PermissionConstants.SMS_PERMISSION_REQUEST_CODE
-            )
-        } else {
-            Log.d(TAG, "SMS permissions already granted")
-        }
     }
-    
-    /**
-     * Gets SMS permission status
-     */
+
+    /** Returns notification listener access status */
     fun getSMSPermissionStatus(): String {
-        val receiveSMS = isPermissionGranted(Manifest.permission.RECEIVE_SMS)
-        val readSMS = isPermissionGranted(Manifest.permission.READ_SMS)
-        
-        return "SMS Permissions - Receive: ${if (receiveSMS) "✅" else "❌"}, Read: ${if (readSMS) "✅" else "❌"}"
+        val enabled = checkSMSPermissions()
+        return "Notification Listener: ${if (enabled) "✅ Enabled" else "❌ Disabled"}"
     }
-    
-    /**
-     * Checks if SMS permissions are critical for current functionality
-     */
-    fun areSMSPermissionsCritical(): Boolean {
-        // SMS permissions are critical for payment detection
-        return true
-    }
+
+    /** Notification listener access is required for payment detection */
+    fun areSMSPermissionsCritical(): Boolean = true
     
     /**
      * Checks if contact permission is granted

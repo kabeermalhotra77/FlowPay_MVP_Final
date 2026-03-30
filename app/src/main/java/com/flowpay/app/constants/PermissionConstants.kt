@@ -14,8 +14,6 @@ object PermissionConstants {
         Manifest.permission.READ_PHONE_STATE,
         Manifest.permission.MODIFY_AUDIO_SETTINGS,
         Manifest.permission.CAMERA,
-        Manifest.permission.RECEIVE_SMS,
-        Manifest.permission.READ_SMS,
         Manifest.permission.READ_CONTACTS,
         Manifest.permission.VIBRATE
     )
@@ -30,8 +28,6 @@ object PermissionConstants {
     val OPTIONAL_PERMISSIONS = arrayOf(
         Manifest.permission.MODIFY_AUDIO_SETTINGS,
         Manifest.permission.CAMERA,
-        Manifest.permission.RECEIVE_SMS,
-        Manifest.permission.READ_SMS,
         Manifest.permission.READ_CONTACTS,
         Manifest.permission.VIBRATE
     )
@@ -66,8 +62,7 @@ object PermissionConstants {
         Manifest.permission.READ_PHONE_STATE to "Monitor call states for payment protection",
         Manifest.permission.MODIFY_AUDIO_SETTINGS to "Control audio during calls for better experience",
         Manifest.permission.CAMERA to "Scan QR codes (phone camera for Tap to scan; glasses camera via Meta when connected)",
-        Manifest.permission.RECEIVE_SMS to "Receive payment confirmation messages",
-        Manifest.permission.READ_SMS to "Read payment-related messages",
+        "notification_listener" to "Notification access for bank payment confirmations",
         Manifest.permission.READ_CONTACTS to "Select contacts for easy transfers",
         Manifest.permission.VIBRATE to "Provide haptic feedback for notifications",
         Manifest.permission.RECORD_AUDIO to "Glasses microphone for wake word only (not phone mic)"
@@ -98,8 +93,6 @@ object PermissionConstants {
         Manifest.permission.MODIFY_AUDIO_SETTINGS to PermissionCategory.AUDIO,
         Manifest.permission.RECORD_AUDIO to PermissionCategory.AUDIO,
         Manifest.permission.CAMERA to PermissionCategory.CAMERA,
-        Manifest.permission.RECEIVE_SMS to PermissionCategory.MESSAGING,
-        Manifest.permission.READ_SMS to PermissionCategory.MESSAGING,
         Manifest.permission.READ_CONTACTS to PermissionCategory.CONTACTS,
         Manifest.permission.VIBRATE to PermissionCategory.SYSTEM
     )

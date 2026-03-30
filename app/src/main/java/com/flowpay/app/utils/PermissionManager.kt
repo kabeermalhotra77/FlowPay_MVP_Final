@@ -21,18 +21,15 @@ class PermissionManager(private val context: Context) {
         val REQUIRED_PERMISSIONS = arrayOf(
             Manifest.permission.CALL_PHONE,
             Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.READ_SMS,
             Manifest.permission.READ_CONTACTS,
             Manifest.permission.CAMERA,
             Manifest.permission.VIBRATE
         )
-        
+
         val PERMISSION_DESCRIPTIONS = mapOf(
             Manifest.permission.CALL_PHONE to "Make UPI 123 payment calls",
             Manifest.permission.READ_PHONE_STATE to "Monitor call states for payment protection",
-            Manifest.permission.RECEIVE_SMS to "Receive payment confirmation messages",
-            Manifest.permission.READ_SMS to "Read payment-related messages",
+            "notification_listener" to "Notification access for bank payment confirmations",
             Manifest.permission.READ_CONTACTS to "Select contacts for easy transfers",
             Manifest.permission.CAMERA to "Scan QR codes for payments",
             Manifest.permission.VIBRATE to "Provide haptic feedback"

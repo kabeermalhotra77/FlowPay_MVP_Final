@@ -34,7 +34,6 @@ class PermissionGuideActivity : AppCompatActivity() {
         
         private const val REQUEST_OVERLAY_PERMISSION = 1001
         private const val REQUEST_CALL_PERMISSION = 1002
-        private const val REQUEST_SMS_PERMISSION = 1003
     }
     
     private lateinit var permissionManager: PermissionManager
@@ -130,17 +129,18 @@ class PermissionGuideActivity : AppCompatActivity() {
     
     private fun setupSMSPermissionGuide() {
         ivPermissionIcon.setImageResource(R.drawable.ic_sms)
-        tvPermissionTitle.text = "SMS Permission"
-        tvPermissionDescription.text = "Flowpay needs SMS permission to detect payment confirmations. This allows automatic completion of payments when you receive SMS from your bank."
-        
+        tvPermissionTitle.text = "Notification Access"
+        tvPermissionDescription.text = "Flowpay needs notification access to detect bank payment confirmations. This allows automatic completion of payments when your bank sends an SMS notification."
+
         val steps = buildString {
-            append("1. Tap 'Grant Permission' below\n")
-            append("2. Select 'Allow' when prompted\n")
-            append("3. Permission will be granted automatically")
+            append("1. Tap 'Open Settings' below\n")
+            append("2. Find 'Flowpay' in the list\n")
+            append("3. Toggle the switch to enable\n")
+            append("4. Return to Flowpay")
         }
         tvPermissionSteps.text = steps
-        
-        btnGrantPermission.text = "Grant Permission"
+
+        btnGrantPermission.text = "Open Settings"
         btnSkip.visibility = View.VISIBLE
         btnNext.visibility = View.GONE
     }
@@ -202,20 +202,11 @@ class PermissionGuideActivity : AppCompatActivity() {
     }
     
     private fun grantSMSPermission() {
-        val smsPermissions = arrayOf(
-            Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.READ_SMS
+        startActivity(
+            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
         )
-        
-        val missingPermissions = smsPermissions.filter { permission ->
-            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
-        }
-        
-        if (missingPermissions.isNotEmpty()) {
-            requestPermissions(missingPermissions.toTypedArray(), REQUEST_SMS_PERMISSION)
-        } else {
-            onPermissionGranted()
-        }
     }
     
     private fun grantCurrentPermissionInSequence() {
@@ -268,6 +259,18 @@ class PermissionGuideActivity : AppCompatActivity() {
         finish()
     }
     
+    override fun onResume() {
+        super.onResume()
+        val isSmsSectionActive = currentPermissionType == PERMISSION_SMS ||
+                (currentPermissionType == PERMISSION_ALL && permissionTypes.getOrNull(permissionIndex) == PERMISSION_SMS)
+        if (isSmsSectionActive) {
+            val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+            if (flat?.contains(packageName) == true) {
+                onPermissionGranted()
+            }
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         
@@ -292,14 +295,6 @@ class PermissionGuideActivity : AppCompatActivity() {
         when (requestCode) {
             REQUEST_CALL_PERMISSION -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    onPermissionGranted()
-                } else {
-                    onPermissionDenied()
-                }
-            }
-            REQUEST_SMS_PERMISSION -> {
-                val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-                if (allGranted) {
                     onPermissionGranted()
                 } else {
                     onPermissionDenied()
