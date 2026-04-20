@@ -103,6 +103,12 @@ class TestConfigurationHelper(
      * Initiate a test call
      */
     fun initiateCall(callType: CallType) {
+        // Guard: prevent duplicate dials
+        if (callType == CallType.USSD && (ussdTesting || ussdTestCompleted)) {
+            Log.d(TAG, "USSD already in progress or completed, ignoring duplicate dial")
+            return
+        }
+
         // Check phone permissions before initiating call - request directly if missing
         if (!permissionManager.hasPhonePermissions()) {
             Log.e(TAG, "Phone permissions not granted")

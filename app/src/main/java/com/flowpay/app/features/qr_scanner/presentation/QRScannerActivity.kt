@@ -66,12 +66,7 @@ class QRScannerActivity : ComponentActivity() {
     private lateinit var instructionsExpanded: View
     private lateinit var btnGallery: ImageButton
     private lateinit var btnFlash: ImageButton
-    private lateinit var tvFlashLabel: TextView
     private lateinit var bottomActionBar: View
-    private lateinit var dimTop: View
-    private lateinit var dimBottom: View
-    private lateinit var dimLeft: View
-    private lateinit var dimRight: View
     private lateinit var scanLine: View
     private var scanLineAnimator: android.animation.ObjectAnimator? = null
     private lateinit var cameraExecutor: ExecutorService
@@ -174,12 +169,7 @@ class QRScannerActivity : ComponentActivity() {
             instructionsExpanded = findViewById(R.id.instructionsExpanded)
             btnGallery = findViewById(R.id.btnGallery)
             btnFlash = findViewById(R.id.btnFlash)
-            tvFlashLabel = findViewById(R.id.tvFlashLabel)
             bottomActionBar = findViewById(R.id.bottomActionBar)
-            dimTop = findViewById(R.id.dimTop)
-            dimBottom = findViewById(R.id.dimBottom)
-            dimLeft = findViewById(R.id.dimLeft)
-            dimRight = findViewById(R.id.dimRight)
             scanLine = findViewById(R.id.scanLine)
 
             Log.d("QRScanner", "Views initialized successfully")
@@ -208,7 +198,6 @@ class QRScannerActivity : ComponentActivity() {
                 btnFlash.setImageResource(
                     if (isFlashOn) R.drawable.ic_flash_on else R.drawable.ic_flash_off
                 )
-                tvFlashLabel.text = if (isFlashOn) "Flash On" else "Flash Off"
                 btnFlash.setBackgroundResource(
                     if (isFlashOn) R.drawable.bottom_action_button_active_bg
                     else R.drawable.bottom_action_button_bg
@@ -387,10 +376,6 @@ class QRScannerActivity : ComponentActivity() {
                 if (!isActivityAlive()) return@runOnUiThread
                 scannerOverlay.visibility = View.GONE
                 bottomActionBar.visibility = View.GONE
-                dimTop.visibility = View.GONE
-                dimBottom.visibility = View.GONE
-                dimLeft.visibility = View.GONE
-                dimRight.visibility = View.GONE
                 scanLineAnimator?.cancel()
                 progressBar.visibility = View.VISIBLE
                 tvStatus.text = "Processing QR code..."
@@ -542,7 +527,7 @@ class QRScannerActivity : ComponentActivity() {
 
         try {
             Log.d("QRScanner", "Starting USSD call activity")
-            updateBlackScreenStatus("USSD call initiated: $ussdCode")
+            updateBlackScreenStatus("USSD call initiated")
             startActivity(intent)
             Log.d("QRScanner", "USSD call initiated successfully")
 
@@ -797,10 +782,6 @@ class QRScannerActivity : ComponentActivity() {
             viewFinder.visibility = View.GONE
             scannerOverlay.visibility = View.GONE
             bottomActionBar.visibility = View.GONE
-            dimTop.visibility = View.GONE
-            dimBottom.visibility = View.GONE
-            dimLeft.visibility = View.GONE
-            dimRight.visibility = View.GONE
             scanLineAnimator?.cancel()
             progressBar.visibility = View.GONE
             topBar.visibility = View.GONE  // Hide top bar to prevent overlap
@@ -890,10 +871,6 @@ class QRScannerActivity : ComponentActivity() {
                     viewFinder.visibility = View.VISIBLE
                     scannerOverlay.visibility = View.VISIBLE
                     bottomActionBar.visibility = View.VISIBLE
-                    dimTop.visibility = View.VISIBLE
-                    dimBottom.visibility = View.VISIBLE
-                    dimLeft.visibility = View.VISIBLE
-                    dimRight.visibility = View.VISIBLE
                     topBar.visibility = View.VISIBLE  // Show top bar again
                     tvStatus.visibility = View.GONE
                     instructionsBox.visibility = View.GONE
@@ -902,7 +879,6 @@ class QRScannerActivity : ComponentActivity() {
                     isFlashOn = false
                     camera?.cameraControl?.enableTorch(false)
                     btnFlash.setImageResource(R.drawable.ic_flash_off)
-                    tvFlashLabel.text = "Flash Off"
                     btnFlash.setBackgroundResource(R.drawable.bottom_action_button_bg)
                     startScanLineAnimation()
 
@@ -958,8 +934,8 @@ class QRScannerActivity : ComponentActivity() {
         if (!::scanLine.isInitialized) return
         scanLineAnimator?.cancel()
         val density = resources.displayMetrics.density
-        // Scanner frame is 280dp; margins 12dp each side; line is 2dp — travel ~254dp
-        val maxTranslation = ((280 - 12 * 2 - 2) * density)
+        // Scanner frame is 260dp; margins 12dp each side; line is 2dp — travel ~234dp
+        val maxTranslation = ((260 - 12 * 2 - 2) * density)
         scanLineAnimator = android.animation.ObjectAnimator.ofFloat(
             scanLine, "translationY", 0f, maxTranslation
         ).apply {

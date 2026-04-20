@@ -48,6 +48,9 @@ class CallManager(private val context: Context) {
     private val callStateLock = Any()
     private val callbackLock = Any()
     private val listenerLock = Any()
+
+    @Volatile
+    private var isUSSDDialPending = false
     
     private val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
     
@@ -170,18 +173,25 @@ class CallManager(private val context: Context) {
      * Handle USSD calls using ACTION_CALL (simplified)
      */
     private fun handleUSSDCall(ussdCode: String, onUssdComplete: (() -> Unit)?) {
+        // Prevent double-dial at the call-manager level
+        if (isUSSDDialPending) {
+            Log.w(TAG, "USSD dial already pending, ignoring duplicate")
+            return
+        }
+        isUSSDDialPending = true
+
         // Set up USSD callback
         setUssdSessionCompleteCallback(onUssdComplete)
         _isCallInProgress.value = true
         currentCallType = CallType.USSD
-        
+
         Log.d(TAG, "Starting USSD call: $ussdCode")
-        
-        
+
         // Create and register phone state listener for USSD calls
         synchronized(listenerLock) {
             phoneStateListener = createPhoneStateListener { callType ->
                 if (callType == CallType.USSD) {
+                    isUSSDDialPending = false
                     synchronized(callStateLock) {
                         _isCallInProgress.value = false
                         currentCallType = null
@@ -206,6 +216,7 @@ class CallManager(private val context: Context) {
             Log.d(TAG, "USSD call initiated: $ussdCode")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initiate USSD call: ${e.message}")
+            isUSSDDialPending = false
             synchronized(callStateLock) {
                 _isCallInProgress.value = false
                 currentCallType = null

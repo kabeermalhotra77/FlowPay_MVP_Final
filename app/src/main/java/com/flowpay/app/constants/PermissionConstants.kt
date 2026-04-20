@@ -39,6 +39,7 @@ object PermissionConstants {
     const val SMS_PERMISSION_REQUEST_CODE = 0x1003
     const val CONTACTS_PERMISSION_REQUEST_CODE = 0x1004
     const val GLASSES_PERMISSION_REQUEST_CODE = 0x1005
+    const val SIGNAL_PERMISSION_REQUEST_CODE = 0x1006
     
     // Glasses-specific permissions.
     // RECORD_AUDIO is required by Android 14+ to start a foreground service with
@@ -66,6 +67,12 @@ object PermissionConstants {
         Manifest.permission.READ_CONTACTS to "Select contacts for easy transfers",
         Manifest.permission.VIBRATE to "Provide haptic feedback for notifications",
         Manifest.permission.RECORD_AUDIO to "Glasses microphone for wake word only (not phone mic)"
+    )
+
+    // Permissions needed for Signal Comparison screen
+    val SIGNAL_PERMISSIONS = arrayOf(
+        Manifest.permission.READ_PHONE_STATE,
+        Manifest.permission.ACCESS_FINE_LOCATION
     )
 
     /** User-facing description for glasses camera (managed by Meta; not an Android permission). Meta AI may not show a separate permission dialog. */

@@ -227,38 +227,36 @@ class PermissionManager(private val activity: Activity) {
     }
     
     /**
-     * Checks if notification listener access is granted (replaces READ_SMS/RECEIVE_SMS).
-     * Transaction detection now uses NotificationListenerService.
+     * Checks if RECEIVE_SMS runtime permission is granted.
      */
     fun checkSMSPermissions(): Boolean {
-        val flat = Settings.Secure.getString(
-            activity.contentResolver, "enabled_notification_listeners"
-        )
-        return flat?.contains(activity.packageName) == true
+        return ContextCompat.checkSelfPermission(
+            activity, Manifest.permission.RECEIVE_SMS
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     /** Alias with consistent naming */
     fun hasSmsPermissions(): Boolean = checkSMSPermissions()
 
     /**
-     * Opens notification listener settings (replaces SMS permission dialog).
+     * Requests RECEIVE_SMS permission at runtime.
      */
     fun requestSMSPermissions() {
-        Log.d(TAG, "Opening notification listener settings")
-        activity.startActivity(
-            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+        Log.d(TAG, "Requesting RECEIVE_SMS permission")
+        ActivityCompat.requestPermissions(
+            activity,
+            arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS),
+            PermissionConstants.SMS_PERMISSION_REQUEST_CODE
         )
     }
 
-    /** Returns notification listener access status */
+    /** Returns SMS permission status */
     fun getSMSPermissionStatus(): String {
         val enabled = checkSMSPermissions()
-        return "Notification Listener: ${if (enabled) "✅ Enabled" else "❌ Disabled"}"
+        return "SMS: ${if (enabled) "✅ Granted" else "❌ Denied"}"
     }
 
-    /** Notification listener access is required for payment detection */
+    /** SMS permission is required for payment detection */
     fun areSMSPermissionsCritical(): Boolean = true
     
     /**
@@ -277,6 +275,30 @@ class PermissionManager(private val activity: Activity) {
             arrayOf(Manifest.permission.READ_CONTACTS),
             PermissionConstants.CONTACTS_PERMISSION_REQUEST_CODE
         )
+    }
+
+    /**
+     * Checks if all signal comparison permissions are granted
+     */
+    fun hasSignalPermissions(): Boolean {
+        return PermissionConstants.SIGNAL_PERMISSIONS.all { isPermissionGranted(it) }
+    }
+
+    /**
+     * Requests signal comparison permissions (READ_PHONE_STATE + ACCESS_FINE_LOCATION)
+     */
+    fun requestSignalPermissions() {
+        val needed = PermissionConstants.SIGNAL_PERMISSIONS.filter { !isPermissionGranted(it) }
+        if (needed.isNotEmpty()) {
+            Log.d(TAG, "Requesting signal permissions: ${needed.joinToString()}")
+            ActivityCompat.requestPermissions(
+                activity,
+                needed.toTypedArray(),
+                PermissionConstants.SIGNAL_PERMISSION_REQUEST_CODE
+            )
+        } else {
+            Log.d(TAG, "Signal permissions already granted")
+        }
     }
 
     /**

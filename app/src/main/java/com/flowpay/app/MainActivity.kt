@@ -7,11 +7,13 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -56,6 +58,7 @@ import androidx.compose.material.icons.filled.PermContactCalendar
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -171,6 +174,10 @@ class MainActivity : ComponentActivity() {
         var resetQRScanningStateCallback: (() -> Unit)? = null
         @Volatile
         var showOverlayPermissionDialogCallback: (() -> Unit)? = null
+        @Volatile
+        var onSmsPermissionGrantedCallback: (() -> Unit)? = null
+        @Volatile
+        var onSignalPermissionResultCallback: (() -> Unit)? = null
     }
 
     // Helper for all business logic
@@ -484,7 +491,8 @@ class MainActivity : ComponentActivity() {
             }
             PermissionConstants.SMS_PERMISSION_REQUEST_CODE -> {
                 if (success) {
-                    Toast.makeText(this, "SMS permissions granted", Toast.LENGTH_SHORT).show()
+                    onSmsPermissionGrantedCallback?.invoke()
+                    onSmsPermissionGrantedCallback = null
                 } else {
                     Toast.makeText(
                         this,
@@ -499,6 +507,11 @@ class MainActivity : ComponentActivity() {
                 } else {
                     Toast.makeText(this, "Some permissions were denied", Toast.LENGTH_SHORT).show()
                 }
+            }
+            PermissionConstants.SIGNAL_PERMISSION_REQUEST_CODE -> {
+                // Open signal screen regardless — SignalStrengthAnalyzer handles missing permissions gracefully
+                onSignalPermissionResultCallback?.invoke()
+                onSignalPermissionResultCallback = null
             }
         }
     }
@@ -919,6 +932,20 @@ fun MainScreen(
         hostActivity?.let { PermissionManager(it) }
     }
 
+    // Signal Check permission launcher
+    val signalPermissions = arrayOf(
+        Manifest.permission.READ_PHONE_STATE,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    )
+    val signalPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        // Launch regardless — SignalStrengthAnalyzer handles missing permissions gracefully
+        context.startActivity(
+            Intent(context, com.flowpay.app.features.signal_check.presentation.SignalComparisonActivity::class.java)
+        )
+    }
+
     val glassesState by GlassesSessionManager.state.collectAsState()
     var previousGlassesState by remember { mutableStateOf(glassesState) }
     LaunchedEffect(Unit) {
@@ -1234,6 +1261,37 @@ fun MainScreen(
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
+                            // Signal Check Button
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 8.dp, end = 4.dp)
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.22f))
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) {
+                                        val allGranted = signalPermissions.all { perm ->
+                                            ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+                                        }
+                                        if (allGranted) {
+                                            context.startActivity(
+                                                Intent(context, com.flowpay.app.features.signal_check.presentation.SignalComparisonActivity::class.java)
+                                            )
+                                        } else {
+                                            signalPermissionLauncher.launch(signalPermissions)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SignalCellularAlt,
+                                    contentDescription = "Signal Check",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                             // Settings Button - Clean modern style with spec dimensions
                             Box(
                                 modifier = Modifier
@@ -1348,7 +1406,10 @@ fun MainScreen(
                 PaymentActionButtons(
                     onQRScanClick = {
                         Log.d("FlowPay", "QR scan button clicked")
-                        if (!isNotificationListenerEnabled(context)) {
+                        val hasSms = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.RECEIVE_SMS
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (!hasSms) {
                             pendingSmsAction = {
                                 isScanning = true
                                 onQRScanClick()
@@ -1360,7 +1421,15 @@ fun MainScreen(
                         }
                     },
                     onPayContactClick = {
-                        showPayContact = true
+                        val hasSms = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.RECEIVE_SMS
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (!hasSms) {
+                            pendingSmsAction = { showPayContact = true }
+                            showSmsPermissionDialog = true
+                        } else {
+                            showPayContact = true
+                        }
                     },
                     isScanning = isScanning
                 )
@@ -1665,15 +1734,26 @@ fun MainScreen(
             }
 
             if (showSmsPermissionDialog) {
+                val hostActivity = remember(context) { context.findComponentActivity() }
                 PermissionExplanationDialog(
-                    title = "Notification Access",
-                    message = "FlowPay reads bank notifications to detect payment confirmations. It only looks at messages from bank SMS apps and never stores any other notifications.",
-                    confirmButtonText = "Open Settings",
+                    title = "SMS Permission",
+                    message = "Flowpay needs to read bank SMS messages to automatically detect payment confirmations. It only processes messages from your bank and never reads personal messages.",
+                    confirmButtonText = "Grant",
                     onConfirm = {
                         showSmsPermissionDialog = false
-                        context.startActivity(
-                            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                        )
+                        hostActivity?.let { activity ->
+                            // Register callback so pendingSmsAction fires when permission is granted
+                            MainActivity.onSmsPermissionGrantedCallback = pendingSmsAction
+                            pendingSmsAction = null
+                            androidx.core.app.ActivityCompat.requestPermissions(
+                                activity,
+                                arrayOf(
+                                    android.Manifest.permission.RECEIVE_SMS,
+                                    android.Manifest.permission.READ_SMS
+                                ),
+                                com.flowpay.app.constants.PermissionConstants.SMS_PERMISSION_REQUEST_CODE
+                            )
+                        }
                     },
                     onDismiss = {
                         showSmsPermissionDialog = false

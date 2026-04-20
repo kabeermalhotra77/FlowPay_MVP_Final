@@ -1,43 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- QR scanner corner bracket overlay — 4 L-shaped corners, no full border -->
+<!-- Frame is 260x260dp; corner brackets are 32dp long, 3dp thick, white -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Subtle outer stroke -->
-    <item>
+
+    <!-- Top-left: horizontal -->
+    <item android:left="0dp" android:right="228dp" android:top="0dp" android:bottom="257dp">
         <shape android:shape="rectangle">
-            <solid android:color="@android:color/transparent" />
-            <stroke
-                android:width="2dp"
-                android:color="#26FFFFFF" />
-            <corners android:radius="20dp" />
+            <solid android:color="#FFFFFFFF" />
+            <corners android:topLeftRadius="3dp" />
+        </shape>
+    </item>
+    <!-- Top-left: vertical -->
+    <item android:left="0dp" android:right="257dp" android:top="0dp" android:bottom="228dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:topLeftRadius="3dp" />
         </shape>
     </item>
 
-    <!-- Blue accent stroke (slightly inset) -->
-    <item
-        android:left="1dp"
-        android:top="1dp"
-        android:right="1dp"
-        android:bottom="1dp">
+    <!-- Top-right: horizontal -->
+    <item android:left="228dp" android:right="0dp" android:top="0dp" android:bottom="257dp">
         <shape android:shape="rectangle">
-            <solid android:color="@android:color/transparent" />
-            <stroke
-                android:width="2dp"
-                android:color="#402196F3" />
-            <corners android:radius="18dp" />
+            <solid android:color="#FFFFFFFF" />
+            <corners android:topRightRadius="3dp" />
+        </shape>
+    </item>
+    <!-- Top-right: vertical -->
+    <item android:left="257dp" android:right="0dp" android:top="0dp" android:bottom="228dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:topRightRadius="3dp" />
         </shape>
     </item>
 
-    <!-- Inner hairline to increase contrast on bright scenes -->
-    <item
-        android:left="3dp"
-        android:top="3dp"
-        android:right="3dp"
-        android:bottom="3dp">
+    <!-- Bottom-left: horizontal -->
+    <item android:left="0dp" android:right="228dp" android:top="257dp" android:bottom="0dp">
         <shape android:shape="rectangle">
-            <solid android:color="@android:color/transparent" />
-            <stroke
-                android:width="1dp"
-                android:color="#14FFFFFF" />
-            <corners android:radius="16dp" />
+            <solid android:color="#FFFFFFFF" />
+            <corners android:bottomLeftRadius="3dp" />
         </shape>
     </item>
+    <!-- Bottom-left: vertical -->
+    <item android:left="0dp" android:right="257dp" android:top="228dp" android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:bottomLeftRadius="3dp" />
+        </shape>
+    </item>
+
+    <!-- Bottom-right: horizontal -->
+    <item android:left="228dp" android:right="0dp" android:top="257dp" android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:bottomRightRadius="3dp" />
+        </shape>
+    </item>
+    <!-- Bottom-right: vertical -->
+    <item android:left="257dp" android:right="0dp" android:top="228dp" android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:bottomRightRadius="3dp" />
+        </shape>
+    </item>
+
 </layer-list>

@@ -6,60 +6,17 @@
     android:layout_height="match_parent"
     android:background="@color/black">
 
+    <!-- Camera Preview -->
     <androidx.camera.view.PreviewView
         android:id="@+id/viewFinder"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Dim top -->
-    <View
-        android:id="@+id/dimTop"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="#80000000"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/scannerOverlay"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Dim bottom -->
-    <View
-        android:id="@+id/dimBottom"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="#80000000"
-        app:layout_constraintTop_toBottomOf="@id/scannerOverlay"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Dim left -->
-    <View
-        android:id="@+id/dimLeft"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="#80000000"
-        app:layout_constraintTop_toTopOf="@id/scannerOverlay"
-        app:layout_constraintBottom_toBottomOf="@id/scannerOverlay"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/scannerOverlay" />
-
-    <!-- Dim right -->
-    <View
-        android:id="@+id/dimRight"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="#80000000"
-        app:layout_constraintTop_toTopOf="@id/scannerOverlay"
-        app:layout_constraintBottom_toBottomOf="@id/scannerOverlay"
-        app:layout_constraintStart_toEndOf="@id/scannerOverlay"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Scanner Overlay (FrameLayout to host animated scan line) -->
+    <!-- Scanner Frame -->
     <FrameLayout
         android:id="@+id/scannerOverlay"
-        android:layout_width="280dp"
-        android:layout_height="280dp"
+        android:layout_width="260dp"
+        android:layout_height="260dp"
         android:background="@drawable/scanner_overlay"
         android:clipChildren="false"
         app:layout_constraintTop_toTopOf="parent"
@@ -79,22 +36,21 @@
     </FrameLayout>
 
     <!-- Top Bar -->
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="@drawable/scanner_top_scrim_bg"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="12dp"
+        android:paddingTop="52dp"
         android:paddingBottom="12dp"
-        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
             android:id="@+id/btnBack"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="start|center_vertical"
             android:background="@drawable/bottom_action_button_bg"
             android:src="@drawable/ic_close"
             android:scaleType="centerInside"
@@ -102,119 +58,89 @@
             app:tint="@color/white" />
 
         <TextView
-            android:id="@+id/tvScannerTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="12dp"
-            android:text="Scan to Pay"
-            android:textColor="#F2FFFFFF"
-            android:textSize="16sp"
-            android:fontFamily="sans-serif-medium"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:ellipsize="end" />
-
-        <View
-            android:layout_width="44dp"
-            android:layout_height="44dp" />
-    </LinearLayout>
-
-    <!-- Bottom Action Bar -->
-    <LinearLayout
-        android:id="@+id/bottomActionBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:background="@drawable/scanner_bottom_dock_bg"
-        android:paddingHorizontal="20dp"
-        android:paddingBottom="20dp"
-        android:paddingTop="16dp"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <!-- Instruction text -->
-        <TextView
-            android:id="@+id/tvScanInstruction"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Align QR code within the frame"
-            android:textColor="#E6FFFFFF"
-            android:textSize="15sp"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="16dp" />
+            android:layout_gravity="center"
+            android:text="Scan QR Code"
+            android:textColor="#FFFFFFFF"
+            android:textSize="17sp"
+            android:fontFamily="sans-serif-medium" />
 
-        <!-- Action buttons row -->
+    </FrameLayout>
+
+    <!-- Bottom Action Bar: gallery + torch with labels -->
+    <LinearLayout
+        android:id="@+id/bottomActionBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="48dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Upload QR from Gallery -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center">
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginEnd="32dp">
 
-            <!-- Gallery button -->
-            <LinearLayout
-                android:layout_width="0dp"
+            <ImageButton
+                android:id="@+id/btnGallery"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bottom_action_button_bg"
+                android:src="@drawable/ic_photo_library"
+                android:scaleType="centerInside"
+                android:padding="14dp"
+                app:tint="@color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center_horizontal">
+                android:layout_marginTop="6dp"
+                android:text="Upload QR"
+                android:textColor="#CCFFFFFF"
+                android:textSize="12sp"
+                android:fontFamily="sans-serif-medium" />
 
-                <ImageButton
-                    android:id="@+id/btnGallery"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:background="@drawable/bottom_action_button_bg"
-                    android:src="@drawable/ic_photo_library"
-                    android:scaleType="centerInside"
-                    android:padding="14dp"
-                    app:tint="@color/white" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Gallery"
-                    android:textColor="#B3FFFFFF"
-                    android:textSize="11sp"
-                    android:fontFamily="sans-serif-medium"
-                    android:layout_marginTop="6dp" />
-            </LinearLayout>
-
-            <!-- Flash button -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center_horizontal">
-
-                <ImageButton
-                    android:id="@+id/btnFlash"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:background="@drawable/bottom_action_button_bg"
-                    android:src="@drawable/ic_flash_off"
-                    android:scaleType="centerInside"
-                    android:padding="14dp"
-                    app:tint="@color/white" />
-
-                <TextView
-                    android:id="@+id/tvFlashLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Flash Off"
-                    android:textColor="#B3FFFFFF"
-                    android:textSize="11sp"
-                    android:fontFamily="sans-serif-medium"
-                    android:layout_marginTop="6dp" />
-            </LinearLayout>
         </LinearLayout>
+
+        <!-- Torch -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginStart="32dp">
+
+            <ImageButton
+                android:id="@+id/btnFlash"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bottom_action_button_bg"
+                android:src="@drawable/ic_flash_off"
+                android:scaleType="centerInside"
+                android:padding="14dp"
+                app:tint="@color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Torch"
+                android:textColor="#CCFFFFFF"
+                android:textSize="12sp"
+                android:fontFamily="sans-serif-medium" />
+
+        </LinearLayout>
+
     </LinearLayout>
 
-    <!-- Instructions Box (190dp) - Shown on black screen with rounded card design -->
+    <!-- Hidden: Instructions Box — shown on black screen after QR scan -->
     <FrameLayout
         android:id="@+id/instructionsBox"
         android:layout_width="0dp"
@@ -228,7 +154,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Initial State: Large centered header (shown for first 4 seconds) -->
         <TextView
             android:id="@+id/instructionsHeaderInitial"
             android:layout_width="wrap_content"
@@ -243,7 +168,6 @@
             android:includeFontPadding="false"
             android:visibility="visible" />
 
-        <!-- Expanded State: Just steps list (no header, shown after 4 seconds) -->
         <LinearLayout
             android:id="@+id/instructionsExpanded"
             android:layout_width="match_parent"
@@ -253,53 +177,35 @@
             android:gravity="center_vertical"
             android:visibility="gone">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="1. Paste the VPA from clipboard"
-                android:textSize="15sp"
-                android:textColor="#333333"
-                android:lineSpacingExtra="2dp"
-                android:layout_marginBottom="10dp" />
+                android:textSize="15sp" android:textColor="#333333"
+                android:lineSpacingExtra="2dp" android:layout_marginBottom="10dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="2. Enter the amount"
-                android:textSize="15sp"
-                android:textColor="#333333"
-                android:lineSpacingExtra="2dp"
-                android:layout_marginBottom="10dp" />
+                android:textSize="15sp" android:textColor="#333333"
+                android:lineSpacingExtra="2dp" android:layout_marginBottom="10dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="3. Press one to skip"
-                android:textSize="15sp"
-                android:textColor="#333333"
-                android:lineSpacingExtra="2dp"
-                android:layout_marginBottom="10dp" />
+                android:textSize="15sp" android:textColor="#333333"
+                android:lineSpacingExtra="2dp" android:layout_marginBottom="10dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="4. Enter your pin"
-                android:textSize="15sp"
-                android:textColor="#333333"
-                android:lineSpacingExtra="2dp"
-                android:layout_marginBottom="10dp" />
+                android:textSize="15sp" android:textColor="#333333"
+                android:lineSpacingExtra="2dp" android:layout_marginBottom="10dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="5. Press cancel to end session"
-                android:textSize="15sp"
-                android:textColor="#333333"
+                android:textSize="15sp" android:textColor="#333333"
                 android:lineSpacingExtra="2dp" />
+
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Progress Bar -->
+    <!-- Hidden: Progress Bar -->
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"
@@ -310,7 +216,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Status Text -->
+    <!-- Hidden: Status Text -->
     <TextView
         android:id="@+id/tvStatus"
         android:layout_width="wrap_content"
@@ -323,7 +229,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Terminate Button -->
+    <!-- Hidden: Terminate Button -->
     <ImageButton
         android:id="@+id/btnTerminate"
         android:layout_width="56dp"
